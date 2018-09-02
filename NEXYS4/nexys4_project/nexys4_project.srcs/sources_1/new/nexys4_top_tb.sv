@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 //////////////////////////////////////////////////////////////////////////////////
 // Company: 
-// Engineer: 
+// Engineer: Wojciech Caputa
 // 
 // Create Date: 01.09.2018 19:55:31
 // Design Name: 
@@ -48,7 +48,16 @@ module nexys4_top_tb();
     initial
     begin
         clk = 0;
-        #16000000 $finish;
+        #20 btn_center = 0;
+        btn_up = 0;
+        #1000000 btn_center = 1;
+        btn_up = 1;
+        #1000000 btn_center = 0;
+        btn_up = 0;
+        
+        
+
+        #50000000 $finish;
     end
     
     always #5 clk++;
