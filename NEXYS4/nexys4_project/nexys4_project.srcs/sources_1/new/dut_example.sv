@@ -18,7 +18,7 @@
 // Additional Comments:
 // 
 //////////////////////////////////////////////////////////////////////////////////
-
+`include "parameters.vh"
 
 module dut_example(gpio_if.dut gpio);
 
@@ -39,7 +39,6 @@ module dut_example(gpio_if.dut gpio);
     parameter btn_sample_rate = 1000000;          //Buttons sampling rage in Hz
     parameter cycles_to_sample = clk_freq_MHz/btn_sample_rate;
     
-    enum {center = 4, up = 3, left = 2, right = 1, down = 0} button;
     reg [4:0] buttons;                  //Array for buttons
     reg [1:0][4:0] buttons_r;           //Registers for synch buttons to clk
     reg [1:0][4:0] buttons_sampled;     //Registers for buttons sampled values

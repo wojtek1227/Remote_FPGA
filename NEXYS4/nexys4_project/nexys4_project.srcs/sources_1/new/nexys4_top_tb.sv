@@ -48,13 +48,12 @@ module nexys4_top_tb();
     initial
     begin
         clk = 0;
-        #20 btn_center = 0;
-        btn_up = 0;
-        #1000000 btn_center = 1;
-        btn_up = 1;
-        #1000000 btn_center = 0;
-        btn_up = 0;
-        
+        #10 sw = 16'had;
+        #25 btn_center = 0;
+        #30 btn_down = 1;
+        #45 btn_up = 0;
+        #50 btn_left = 1;
+        #60 btn_right = 0;      
         
 
         #50000000 $finish;

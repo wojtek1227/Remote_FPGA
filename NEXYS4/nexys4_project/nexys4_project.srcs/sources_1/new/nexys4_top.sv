@@ -43,26 +43,28 @@ module nexys4_top(
     output reg [7:0] digits
     );
     
-    gpio_if gpio(clk);
-    assign gpio.sw = sw;
-    assign gpio.btn_center = btn_center;
-    assign gpio.btn_up = btn_up;
-    assign gpio.btn_left = btn_left;
-    assign gpio.btn_right = btn_right;
-    assign gpio.btn_down = btn_down;
+    spi_if spi(clk);
+    gpio_if gpio_top(clk);
+    gpio_if gpio_dut(clk);
+    assign gpio_top.sw = sw;
+    assign gpio_top.btn_center = btn_center;
+    assign gpio_top.btn_up = btn_up;
+    assign gpio_top.btn_left = btn_left;
+    assign gpio_top.btn_right = btn_right;
+    assign gpio_top.btn_down = btn_down;
     
-    assign led = gpio.led;
-    assign led16_B = gpio.led16_B;
-    assign led16_G = gpio.led16_G;
-    assign led16_R = gpio.led16_R;
-    assign led17_B = gpio.led17_B;
-    assign led17_G = gpio.led17_G;
-    assign led17_R = gpio.led17_R;
-    assign segments = gpio.segments;
-    assign dp = gpio.dp;
-    assign digits = gpio.digits;
+    assign led = gpio_top.led;
+    assign led16_B = gpio_top.led16_B;
+    assign led16_G = gpio_top.led16_G;
+    assign led16_R = gpio_top.led16_R;
+    assign led17_B = gpio_top.led17_B;
+    assign led17_G = gpio_top.led17_G;
+    assign led17_R = gpio_top.led17_R;
+    assign segments = gpio_top.segments;
+    assign dp = gpio_top.dp;
+    assign digits = gpio_top.digits;
 
-    
-    dut_example dut(.*);
+    gpio_grabber grab(spi, gpio_top, gpio_dut);
+    dut_example dut(gpio_dut);
 
 endmodule
