@@ -6,7 +6,7 @@ server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 host = socket.gethostname()
 
-port = 9999
+port = 5001
 
 server_socket.bind((host, port))
 
@@ -17,6 +17,6 @@ while True:
 
     print("Got a connection from %s" % str(addr))
 
-    msg = 'Thank' + "\r\n"
+    msg = 'Thank you bitch' + "\r\n"
     client_socket.send(msg.encode('ascii'))
     client_socket.close()

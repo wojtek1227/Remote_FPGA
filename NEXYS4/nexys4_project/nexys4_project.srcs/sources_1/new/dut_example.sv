@@ -40,11 +40,9 @@ module dut_example(gpio_if.dut gpio);
     parameter cycles_to_sample = clk_freq_MHz/btn_sample_rate;
     
     enum {center = 4, up = 3, left = 2, right = 1, down = 0} button;
-    reg [4:0] buttons;                      //Array for buttons
-    reg [1:0][4:0] buttons_r ;                   //Registers for synch buttons to clk
-//    reg [4:0] buttons_r2 ;                   //Registers for synch buttons to clk
-    reg [1:0][4:0] buttons_sampled;            //Registers for buttons sampled values
-//    reg [4:0] buttons_sampled_2;            //Registers for buttons sampled values
+    reg [4:0] buttons;                  //Array for buttons
+    reg [1:0][4:0] buttons_r;           //Registers for synch buttons to clk
+    reg [1:0][4:0] buttons_sampled;     //Registers for buttons sampled values
     reg [4:0] buttons_rising_edge;
     reg [31:0] sampling_counter = 0;
     reg [2:0] led16 = 3'b001;
@@ -59,7 +57,7 @@ module dut_example(gpio_if.dut gpio);
     end : buttons_synch
     
     always_ff@(posedge gpio.clk)
-    begin : buttons_edge_detect
+    begin : check_buttons
         if (sampling_counter == cycles_to_sample - 1) begin
             buttons_sampled <= {buttons_sampled[0], buttons_r[1]};
             sampling_counter <= 0;
@@ -85,19 +83,13 @@ module dut_example(gpio_if.dut gpio);
         end else begin
             sampling_counter <= sampling_counter + 1;
         end
-    end : buttons_edge_detect
+    end : check_buttons
     
     genvar i;
     for (i = 0; i < 5; i = i + 1)
     begin
         assign buttons_rising_edge[i] = ({buttons_sampled[1][i], buttons_sampled[0][i]} == 2'b01) ? 1 : 0;
     end
-//    assign buttons_rising_edge[0] = ({buttons_sampled_2[0], buttons_sampled_1[0]} == 2'b01);
-//    assign buttons_rising_edge[1] = ({buttons_sampled_2[1], buttons_sampled_1[1]} == 2'b01);
-//    assign buttons_rising_edge[2] = ({buttons_sampled_2[2], buttons_sampled_1[2]} == 2'b01);
-//    assign buttons_rising_edge[3] = ({buttons_sampled_2[3], buttons_sampled_1[3]} == 2'b01);
-//    assign buttons_rising_edge[4] = ({buttons_sampled_2[4], buttons_sampled_1[4]} == 2'b01);    
-
 
     assign gpio.led16_R = chose_led ? led16[2] : 0;
     assign gpio.led16_G = chose_led ? led16[1] : 0;
