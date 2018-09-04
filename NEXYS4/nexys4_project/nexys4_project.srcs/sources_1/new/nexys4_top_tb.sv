@@ -18,11 +18,14 @@
 // Additional Comments:
 // 
 //////////////////////////////////////////////////////////////////////////////////
-
+`include "parameters.vh"
 
 module nexys4_top_tb();
 
     parameter period = 10;
+    parameter spi_period = period*25;
+    
+    
     logic clk;        
     logic [15:0] sw;  
                  
@@ -44,21 +47,70 @@ module nexys4_top_tb();
     logic dp;        
     logic [7:0] digits;
     
+    logic ss;
+    logic sclk;
+    logic mosi;
+    logic miso;
+    
     nexys4_top top(.*);
     initial
     begin
         clk = 0;
-        #10 sw = 16'had;
-        #25 btn_center = 0;
-        #30 btn_down = 1;
-        #45 btn_up = 0;
-        #50 btn_left = 1;
-        #60 btn_right = 0;      
-        
+        #10 sw = 16'hdead;
+        init_buttons;      
+        init_spi;
+        #10;
+        spi_send(8'haa);
 
         #50000000 $finish;
     end
     
-    always #5 clk++;
+    always #(period/2) clk++;
+    
+    task init_buttons;
+        btn_center = 1'b0;
+        btn_up     = 1'b0;
+        btn_left   = 1'b0;
+        btn_right  = 1'b0;
+        btn_down   = 1'b0;
+    endtask
+    
+    task use_button;
+        input [2:0] button;
+        begin
+        
+        end
+    endtask
+    
+    task init_spi;
+        begin
+            ss = ~ss_active;
+            sclk = ~sclk_active;
+            mosi = 1'b0;
+            miso = 1'b0;
+        end
+    endtask
+    
+    task spi_send;
+        input [7:0] data_to_send;
+        integer i;
+        begin
+            ss = ss_active;
+            for (i = 0; i < 7; i++)
+            begin
+                mosi = data_to_send[7-i];
+                sclk = sclk_active;
+                #(spi_period/2);
+                sclk = ~sclk_active;
+                #(spi_period/2);
+            end
+            mosi = data_to_send[0];
+            sclk = sclk_active;
+            #(spi_period/2);
+            sclk = ~sclk_active;
+            ss = ~ss_active;
+            #(spi_period);
+        end
+    endtask
 
 endmodule

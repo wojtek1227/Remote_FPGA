@@ -20,21 +20,7 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 
-interface spi_if(input wire clk);
-    logic sck;
-    logic mosi;
-    logic miso;
-    logic ss;
-    
-    //===================================
-    //Modport for user's DUT
-    //===================================
-    modport master (input clk, miso,
-                    output sck, mosi, ss);
-                
-    //===================================
-    //Modport for testbench and grabber
-    //===================================
-    modport slave (input clk, sck, mosi, ss,
-                   output miso);
+interface spi_if (input wire clk, sclk, mosi, ss, output wire miso);
+
+
 endinterface

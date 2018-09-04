@@ -1,6 +1,21 @@
 `ifndef _parameters_vh_
 `define _parameters_vh_
 
+//TOP
+parameter main_clk_freq = 100000000; //Hz
+
+//DUT
+parameter display_refresh_rate = 125; // Hz
+
+//Grabber
+parameter gpio_sampling_rate  = 1000; //Hz
+parameter display_sampling_rate = main_clk_freq; //Hz
+
+//SPI
+parameter ss_active = 1'b0;
+parameter sclk_active = 1'b0;
+
+
 //Numbers of buttons
 parameter center = 4;
 parameter up = 3;

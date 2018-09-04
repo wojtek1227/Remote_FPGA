@@ -30,22 +30,27 @@ module nexys4_top(
     input wire btn_right,
     input wire btn_down,
     
-    output reg [15:0] led,
-    output reg led16_B,
-    output reg led16_G,
-    output reg led16_R,
-    output reg led17_B,
-    output reg led17_G,
-    output reg led17_R,
+    input wire ss,
+    input wire sclk,
+    input wire mosi,
+    output wire miso,   
+     
+    output wire [15:0] led,
+    output wire led16_B,
+    output wire led16_G,
+    output wire led16_R,
+    output wire led17_B,
+    output wire led17_G,
+    output wire led17_R,
     
-    output reg [6:0] segments,
-    output reg dp,
-    output reg [7:0] digits
+    output wire [6:0] segments,
+    output wire dp,
+    output wire [7:0] digits
     );
     
-    spi_if spi(clk);
-    gpio_if gpio_top(clk);
-    gpio_if gpio_dut(clk);
+    spi_if spi(.*);
+    gpio_if gpio_top(.*);
+    gpio_if gpio_dut(.*);
     assign gpio_top.sw = sw;
     assign gpio_top.btn_center = btn_center;
     assign gpio_top.btn_up = btn_up;

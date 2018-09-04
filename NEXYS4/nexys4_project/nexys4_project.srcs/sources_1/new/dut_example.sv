@@ -22,24 +22,20 @@
 
 module dut_example(gpio_if.dut gpio);
 
-    parameter clk_freq_MHz = 100000000;
+    //7Seg 
+    parameter cycles_to_refresh_digit = main_clk_freq/display_refresh_rate/8;
     
-    
-    //7Seg related 
-    parameter display_refresh_rate = 125; // Hz
-    parameter cycles_to_refresh_digit = clk_freq_MHz/display_refresh_rate/8;
-    
-    reg [3:0] single_digit;
-    reg [7:0][3:0] all_digits ;
+    wire [3:0] single_digit;
+    wire [7:0][3:0] all_digits ;
     reg [31:0] refresh_counter = 0;
-    reg [3:0] current_digit = 0;
+    reg [2:0] current_digit = 0;
     reg [31:0] data_to_display = 32'hdeadbeef;
 
     //Buttons and RGB
-    parameter btn_sample_rate = 1000000;          //Buttons sampling rage in Hz
-    parameter cycles_to_sample = clk_freq_MHz/btn_sample_rate;
+    parameter btn_sample_rate = 50;          //Buttons sampling rage in Hz
+    parameter cycles_to_sample = main_clk_freq/btn_sample_rate;
     
-    reg [4:0] buttons;                  //Array for buttons
+    wire [4:0] buttons;                  //Array for buttons
     reg [1:0][4:0] buttons_r;           //Registers for synch buttons to clk
     reg [1:0][4:0] buttons_sampled;     //Registers for buttons sampled values
     reg [4:0] buttons_rising_edge;
@@ -105,6 +101,7 @@ module dut_example(gpio_if.dut gpio);
     assign {>>{all_digits}} = data_to_display;
     assign single_digit = all_digits[current_digit];
     assign gpio.digits = ~(1 << current_digit);
+    assign gpio.dp = 1'b0;
     
     always_ff@(posedge gpio.clk)
     begin : refresh_display
