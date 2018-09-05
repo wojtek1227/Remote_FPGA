@@ -55,12 +55,15 @@ module nexys4_top_tb();
     nexys4_top top(.*);
     initial
     begin
+        init_spi;
         clk = 0;
         #10 sw = 16'hdead;
         init_buttons;      
         init_spi;
         #10;
-        spi_send(8'haa);
+        spi_send(8'hAD);
+        spi_send(8'h3);
+        spi_send(8'hff);
 
         #50000000 $finish;
     end
@@ -87,7 +90,7 @@ module nexys4_top_tb();
             ss = ~ss_active;
             sclk = ~sclk_active;
             mosi = 1'b0;
-            miso = 1'b0;
+ 
         end
     endtask
     
@@ -108,8 +111,8 @@ module nexys4_top_tb();
             sclk = sclk_active;
             #(spi_period/2);
             sclk = ~sclk_active;
+            #(spi_period/2);
             ss = ~ss_active;
-            #(spi_period);
         end
     endtask
 

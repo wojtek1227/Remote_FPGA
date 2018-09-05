@@ -69,7 +69,7 @@ module nexys4_top(
     assign dp = gpio_top.dp;
     assign digits = gpio_top.digits;
 
-    gpio_grabber grab(spi, gpio_top, gpio_dut);
+    gpio_grabber grabber(spi, gpio_top, gpio_dut);
     dut_example dut(gpio_dut);
 
 endmodule

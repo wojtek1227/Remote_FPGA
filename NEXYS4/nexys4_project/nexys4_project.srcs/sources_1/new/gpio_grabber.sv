@@ -44,9 +44,7 @@ module gpio_grabber(spi_if spi,
     wire [5:0] rgb = {gpio_dut.led17_R, gpio_dut.led17_G, gpio_dut.led17_B,
                         gpio_dut.led16_R, gpio_dut.led16_G, gpio_dut.led16_B};
     
-    //GPIOs and display synchronization registers
-    reg [1:0][15:0] sw_sr;
-    reg [1:0][4:0] btn_sr;
+    //LED and display synchronization registers
     reg [1:0][15:0] led_sr;
     reg [1:0][5:0] rgb_sr;
     reg [1:0][6:0] segments_sr;
@@ -68,11 +66,21 @@ module gpio_grabber(spi_if spi,
     //SPI signals
     wire sclk_rising_edge = (sclk_sr[2:1] == 2'b01);
     wire sclk_falling_edge = (sclk_sr[2:1] == 2'b10);
-    reg [2:0] receive_bit_cnt;
-    reg [2:0] send_bit_cnt;
+    reg [2:0] received_bit_cnt;
+    reg [1:0][2:0] send_bit_cnt;
     reg [7:0] data_received =8'b0;
     reg [7:0] data_to_send = 8'haa;;
     
+    //FSM signals
+    typedef enum logic[2:0] {inst_s = 3'b001, addr_s = 3'b010, data_s = 3'b100} state_t;
+    logic fsm_read = 1'b0;
+    logic fsm_clear = 1'b0;
+    logic [7:0] fsm_address = 8'h0;
+    logic [7:0] fsm_data_to_write = 8'h0;
+    state_t fsm_state = inst_s;
+    state_t fsm_next_state = inst_s;
+    
+    //
     assign spi.miso = data_to_send[7];
     
     //Muxes for switches and buttons
@@ -104,8 +112,6 @@ module gpio_grabber(spi_if spi,
     //Synchronization chain for dut
     always_ff@(posedge gpio_top.clk)
     begin : gpio_synch_chain
-        sw_sr <= {sw_sr[0], gpio_dut.sw};
-        btn_sr <= {btn_sr[0], btn};
         led_sr <= {led_sr[0], gpio_dut.led};        
         rgb_sr <= {rgb_sr[0], rgb};        
         segments_sr <= {segments_sr[0], gpio_dut.segments};
@@ -113,13 +119,11 @@ module gpio_grabber(spi_if spi,
         digits_sr <= {digits_sr[0], gpio_dut.digits};
     end : gpio_synch_chain
     
-    //Sampling of gpio
+    //Sampling of LED
     always_ff@(posedge gpio_top.clk)
     begin : gpio_sampling
         if (gpio_sampling_cnt == gpio_cycles_to_sample - 1) begin
             gpio_sampling_cnt <= 32'h0;
-            sw_data <= sw_sr[1];
-            btn_data <= btn_sr[1];
             led_data <= led_sr[1];
             rgb_data <= rgb_sr[1];
         end else begin
@@ -127,6 +131,7 @@ module gpio_grabber(spi_if spi,
         end
     end : gpio_sampling
     
+    //Sampling of 7seg display
     always_ff@(posedge gpio_top.clk)
     begin : display_sampling
         if (display_sampling_cnt == display_cycles_to_sample - 1) begin
@@ -139,15 +144,17 @@ module gpio_grabber(spi_if spi,
         end
     end : display_sampling
     
-    always_comb
-    begin : display_decode
+    //7seg display demux
+    always_ff@(posedge gpio_top.clk)
+    begin : display_demux
         integer i;
-        for (i = 0; i < 8; i = i + 1)
+        for(i = 0; i < 8; i = i + 1)
         begin
-            sev_seg_disp_data[i] = !digits_data[i] ? {dp_data, segments_data} : sev_seg_disp_data[i]; 
+            if (!digits_data[i]) begin
+                sev_seg_disp_data[i] <= {dp_data, segments_data};
+            end
         end
-            
-    end : display_decode
+    end : display_demux
             
     //Synchronization chain for SPI
     always_ff@(posedge spi.clk)
@@ -161,18 +168,123 @@ module gpio_grabber(spi_if spi,
     always_ff@(posedge spi.clk)
     begin : spi_send_receive
         if (ss_sr[2] == ~ss_active) begin
-            receive_bit_cnt <= 3'b0;
-            send_bit_cnt <= 3'b0;
+            received_bit_cnt <= 3'b0;
+            send_bit_cnt[0] <= 3'b0;
+            send_bit_cnt[1] <= send_bit_cnt[0];
         end else begin
             if (sclk_falling_edge) begin
-                send_bit_cnt <= send_bit_cnt + 1;
+                send_bit_cnt[0] <= send_bit_cnt[0] + 1;
+                send_bit_cnt[1] <= send_bit_cnt[0];
                 data_to_send = {data_to_send[6:0], 1'b0};
             end
             if (sclk_rising_edge) begin
-                receive_bit_cnt <= receive_bit_cnt + 1;
+                received_bit_cnt <= received_bit_cnt + 1;
                 data_received <= {data_received[6:0], spi.mosi};
             end
         end
     end : spi_send_receive
-                    
+    
+    always_ff@(posedge gpio_top.clk)
+    begin
+        
+    end
+    
+    always_ff@(posedge gpio_top.clk)
+    begin : state_update
+        if ((received_bit_cnt == 0)&& sclk_falling_edge)begin
+            case(fsm_state)
+                inst_s: begin
+                            case(data_received)
+                                CLEAR: begin
+                                            fsm_clear <= 1'b1;
+                                            fsm_state <= addr_s;
+                                        end
+                                WRITE: begin
+                                            fsm_state <= addr_s;
+                                        end
+                                READ: begin
+                                            fsm_read <= 1'b1;
+                                            fsm_state <= addr_s;
+                                        end
+                                default: fsm_state <= inst_s;
+                            endcase
+                        end
+                addr_s: begin
+                            if (data_received < mem_addr_end) begin
+                                if (fsm_clear) begin
+                                    case(data_received)
+                                        8'h0: begin
+                                                    sw_data <= 16'h0;
+                                                    sw_select <= 16'h0;
+                                                    btn_data <= 5'h0;
+                                                    btn_select <= 5'h0;
+                                                end
+                                        8'h1: sw_data[7:0] <= 8'h0;
+                                        8'h2: sw_data[15:8] <= 8'h0;
+                                        8'h3: sw_select[7:0] <= 8'h0;
+                                        8'h4: sw_select[15:8] <= 8'h0; 
+                                        8'h5: btn_data <= 5'h0;
+                                        8'h6: btn_select <= 5'h0;
+                                    endcase
+                                    fsm_state <= inst_s;
+                                    fsm_clear <= 1'b0;
+                                end else if (fsm_read) begin
+                                    case(data_received)
+                                        8'h1: data_to_send <= sw_data[7:0];
+                                        8'h2: data_to_send <= sw_data[15:8];
+                                        8'h3: data_to_send <= sw_select[7:0];
+                                        8'h4: data_to_send <= sw_select[15:8];
+                                        8'h5: data_to_send <= btn_data[4:0];
+                                        8'h6: data_to_send <= btn_select[4:0];
+                                        8'h7: data_to_send <= led_data[7:0];
+                                        8'h8: data_to_send <= led_data[15:8];
+                                        8'h9: data_to_send <= sev_seg_disp_data[0];
+                                        8'ha: data_to_send <= sev_seg_disp_data[1];
+                                        8'hb: data_to_send <= sev_seg_disp_data[2];
+                                        8'hc: data_to_send <= sev_seg_disp_data[3];
+                                        8'hd: data_to_send <= sev_seg_disp_data[4];
+                                        8'he: data_to_send <= sev_seg_disp_data[5];
+                                        8'hf: data_to_send <= sev_seg_disp_data[6];
+                                        8'h10: data_to_send <= sev_seg_disp_data[7];
+                                    endcase
+                                    fsm_read <= 1'b0;
+                                    fsm_state <= inst_s;
+                                end else begin
+                                    fsm_address <= data_received;
+                                    fsm_state <= data_s;
+                                end
+                            end else begin
+                                fsm_state <= inst_s;
+                            end
+                        end
+                data_s: begin
+                            memory_write(fsm_address);
+//                            case(fsm_address)
+//                                8'h1: sw_data[7:0]     <= data_received;
+//                                8'h2: sw_data[15:8]    <= data_received;
+//                                8'h3: sw_select[7:0]   <= data_received;
+//                                8'h4: sw_select[15:8]  <= data_received;
+//                                8'h5: btn_data[4:0]    <= data_received;
+//                                8'h6: btn_select[4:0]  <= data_received;
+//                            endcase 
+                            fsm_state <= inst_s;                           
+                        end
+                default: fsm_state <= inst_s;
+            endcase
+        end
+    end : state_update
+    
+    task memory_write;
+    input [7:0] address;
+    begin
+        case(address)
+            8'h1: sw_data[7:0]     <= data_received;
+            8'h2: sw_data[15:8]    <= data_received;
+            8'h3: sw_select[7:0]   <= data_received;
+            8'h4: sw_select[15:8]  <= data_received;
+            8'h5: btn_data[4:0]    <= data_received;
+            8'h6: btn_select[4:0]  <= data_received;
+        endcase
+    end
+    endtask                 
 endmodule
