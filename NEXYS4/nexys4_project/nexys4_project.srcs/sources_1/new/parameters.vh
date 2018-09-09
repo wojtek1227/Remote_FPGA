@@ -1,14 +1,23 @@
 `ifndef _parameters_vh_
 `define _parameters_vh_
 
+
+`define _debug_
 //TOP
 parameter main_clk_freq = 100000000; //Hz
 
 //DUT
+`ifndef _debug_
 parameter display_refresh_rate = 125; // Hz
-
+`else
+parameter display_refresh_rate = 1000000; // Hz
+`endif
 //Grabber
-parameter gpio_sampling_rate  = 1000; //Hz
+`ifndef _debug_
+parameter gpio_sampling_rate  = 50; //Hz
+`else
+parameter gpio_sampling_rate  = 10000000; //Hz
+`endif
 parameter display_sampling_rate = main_clk_freq; //Hz
 parameter fsm_timeout = 1; //s
 

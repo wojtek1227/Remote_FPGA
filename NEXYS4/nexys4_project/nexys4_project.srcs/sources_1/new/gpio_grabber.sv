@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 //////////////////////////////////////////////////////////////////////////////////
 // Company: 
-// Engineer: 
+// Engineer: Wojciech Caputa
 // 
 // Create Date: 02.09.2018 20:30:38
 // Design Name: 
@@ -33,13 +33,13 @@ module gpio_grabber(spi_if spi,
     reg [4:0] btn_select = 5'h0;
     reg [15:0] led_data = 16'h0;
     reg [5:0] rgb_data = 6'h0;
-    
+     
     reg [7:0][7:0] sev_seg_disp_data = {8{8'h0}};
-    
+     
     reg [6:0] segments_data = 7'h0;
     reg dp_data = 1'b0;
     reg [7:0] digits_data = 8'h0;
-    
+     
     wire [4:0] btn = {gpio_dut.btn_center, gpio_dut.btn_up, gpio_dut.btn_left, gpio_dut.btn_right, gpio_dut.btn_down};
     wire [5:0] rgb = {gpio_dut.led17_R, gpio_dut.led17_G, gpio_dut.led17_B,
                         gpio_dut.led16_R, gpio_dut.led16_G, gpio_dut.led16_B};
@@ -53,23 +53,24 @@ module gpio_grabber(spi_if spi,
     
     //GPIOs and display signals
     parameter gpio_cycles_to_sample = main_clk_freq / gpio_sampling_rate;
-    reg [31:0] gpio_sampling_cnt = 32'h0;
+    logic [31:0] gpio_sampling_cnt = 32'h0;
     parameter display_cycles_to_sample = main_clk_freq / display_sampling_rate;
-    reg [31:0] display_sampling_cnt = 32'h0;
+    logic [31:0] display_sampling_cnt = 32'h0;
     
 
     //SPI synchronization registers
-    reg [2:0] ss_sr;
-    reg [2:0] sclk_sr;
-    reg [1:0] mosi_sr;
+    logic [2:0] ss_sr;
+    logic [2:0] sclk_sr;
+    logic [1:0] mosi_sr;
     
     //SPI signals
     wire sclk_rising_edge = (sclk_sr[2:1] == 2'b01);
     wire sclk_falling_edge = (sclk_sr[2:1] == 2'b10);
-    reg [2:0] received_bit_cnt;
-    reg [1:0][2:0] send_bit_cnt;
-    reg [7:0] data_received =8'b0;
-    reg [7:0] data_to_send = 8'haa;;
+    logic [2:0] received_bit_cnt;
+    logic [2:0] send_bit_cnt;
+    logic [7:0] rx_data_reg =8'b0;
+    logic [7:0] tx_data_reg = 8'haa;;
+    logic [7:0] data_to_send = 8'h0;
     logic data_ready = 1'b0;
     
     //FSM signals
@@ -84,7 +85,7 @@ module gpio_grabber(spi_if spi,
     parameter fsm_cycles_to_timeout = main_clk_freq/fsm_timeout;
     
     //
-    assign spi.miso = data_to_send[7];
+    assign spi.miso = tx_data_reg[7];
     
     //Muxes for switches and buttons
     genvar i;
@@ -172,35 +173,39 @@ module gpio_grabber(spi_if spi,
     begin : spi_send_receive
         if (ss_sr[2] == ~ss_active) begin
             received_bit_cnt <= 3'b0;
-            send_bit_cnt[0] <= 3'b0;
-            send_bit_cnt[1] <= send_bit_cnt[0];
+            send_bit_cnt <= 3'b0;
         end else begin
             if (sclk_falling_edge) begin
-                send_bit_cnt[0] <= send_bit_cnt[0] + 1;
-                send_bit_cnt[1] <= send_bit_cnt[0];
-                data_to_send = {data_to_send[6:0], 1'b0};
+                if (send_bit_cnt == 3'h7) begin
+                    tx_data_reg <= data_to_send;
+                    send_bit_cnt <= 8'b0;
+                end else begin
+                    send_bit_cnt <= send_bit_cnt + 1;
+                    tx_data_reg = {tx_data_reg[6:0], 1'b0};
+                end
             end
             if (sclk_rising_edge) begin
                 received_bit_cnt <= received_bit_cnt + 1;
-                data_received <= {data_received[6:0], spi.mosi};
+                rx_data_reg <= {rx_data_reg[6:0], spi.mosi};
             end
         end
     end : spi_send_receive
     
     always_ff@(posedge gpio_top.clk)
-    begin
+    begin : spi_data_ready
         if ((received_bit_cnt == 3'h7) && sclk_rising_edge)
             data_ready <= 1'b1;
         else
             data_ready <= 1'b0;     
-    end
+    end : spi_data_ready
     
     always_ff@(posedge gpio_top.clk)
     begin : state_update
         if (data_ready) begin
             case(fsm_state)
                 inst_s: begin
-                            case(data_received)
+                            data_to_send <= 8'h0;
+                            case(rx_data_reg)
                                 CLEAR: begin
                                             fsm_clear <= 1'b1;
                                             fsm_state <= addr_s;
@@ -216,17 +221,19 @@ module gpio_grabber(spi_if spi,
                             endcase
                         end
                 addr_s: begin
-                            if (data_received < mem_addr_end) begin
+                            if (rx_data_reg < mem_addr_end) begin
                                 if (fsm_clear) begin
-                                    memory_clear(data_received);
+                                    assert (fsm_clear) $display ("OK. Clear performed");
+                                    memory_clear(rx_data_reg);
                                     fsm_state <= inst_s;
                                     fsm_clear <= 1'b0;
                                 end else if (fsm_read) begin
-                                    memory_read(data_received);
+                                    assert (fsm_read) $display ("OK. Read performed");
+                                    memory_read(rx_data_reg);
                                     fsm_read <= 1'b0;
                                     fsm_state <= inst_s;
                                 end else begin
-                                    fsm_address <= data_received;
+                                    fsm_address <= rx_data_reg;
                                     fsm_state <= data_s;
                                 end
                             end else begin
@@ -290,12 +297,12 @@ module gpio_grabber(spi_if spi,
     input [7:0] address;
     begin
         case(address)
-            8'h1: sw_data[7:0]     <= data_received;
-            8'h2: sw_data[15:8]    <= data_received;
-            8'h3: sw_select[7:0]   <= data_received;
-            8'h4: sw_select[15:8]  <= data_received;
-            8'h5: btn_data[4:0]    <= data_received;
-            8'h6: btn_select[4:0]  <= data_received;
+            8'h1: sw_data[7:0]     <= rx_data_reg;
+            8'h2: sw_data[15:8]    <= rx_data_reg;
+            8'h3: sw_select[7:0]   <= rx_data_reg;
+            8'h4: sw_select[15:8]  <= rx_data_reg;
+            8'h5: btn_data[4:0]    <= rx_data_reg;
+            8'h6: btn_select[4:0]  <= rx_data_reg;
         endcase
     end
     endtask                 
