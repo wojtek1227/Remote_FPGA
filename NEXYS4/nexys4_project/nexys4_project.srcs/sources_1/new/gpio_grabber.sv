@@ -70,15 +70,18 @@ module gpio_grabber(spi_if spi,
     reg [1:0][2:0] send_bit_cnt;
     reg [7:0] data_received =8'b0;
     reg [7:0] data_to_send = 8'haa;;
+    logic data_ready = 1'b0;
     
     //FSM signals
-    typedef enum logic[2:0] {inst_s = 3'b001, addr_s = 3'b010, data_s = 3'b100} state_t;
+    typedef enum logic[1:0] {inst_s = 2'b0, addr_s = 2'b01, data_s = 2'b10} state_t;
     logic fsm_read = 1'b0;
     logic fsm_clear = 1'b0;
     logic [7:0] fsm_address = 8'h0;
     logic [7:0] fsm_data_to_write = 8'h0;
     state_t fsm_state = inst_s;
     state_t fsm_next_state = inst_s;
+    logic fsm_timeout_cnt;
+    parameter fsm_cycles_to_timeout = main_clk_freq/fsm_timeout;
     
     //
     assign spi.miso = data_to_send[7];
@@ -186,12 +189,15 @@ module gpio_grabber(spi_if spi,
     
     always_ff@(posedge gpio_top.clk)
     begin
-        
+        if ((received_bit_cnt == 3'h7) && sclk_rising_edge)
+            data_ready <= 1'b1;
+        else
+            data_ready <= 1'b0;     
     end
     
     always_ff@(posedge gpio_top.clk)
     begin : state_update
-        if ((received_bit_cnt == 0)&& sclk_falling_edge)begin
+        if (data_ready) begin
             case(fsm_state)
                 inst_s: begin
                             case(data_received)
@@ -212,41 +218,11 @@ module gpio_grabber(spi_if spi,
                 addr_s: begin
                             if (data_received < mem_addr_end) begin
                                 if (fsm_clear) begin
-                                    case(data_received)
-                                        8'h0: begin
-                                                    sw_data <= 16'h0;
-                                                    sw_select <= 16'h0;
-                                                    btn_data <= 5'h0;
-                                                    btn_select <= 5'h0;
-                                                end
-                                        8'h1: sw_data[7:0] <= 8'h0;
-                                        8'h2: sw_data[15:8] <= 8'h0;
-                                        8'h3: sw_select[7:0] <= 8'h0;
-                                        8'h4: sw_select[15:8] <= 8'h0; 
-                                        8'h5: btn_data <= 5'h0;
-                                        8'h6: btn_select <= 5'h0;
-                                    endcase
+                                    memory_clear(data_received);
                                     fsm_state <= inst_s;
                                     fsm_clear <= 1'b0;
                                 end else if (fsm_read) begin
-                                    case(data_received)
-                                        8'h1: data_to_send <= sw_data[7:0];
-                                        8'h2: data_to_send <= sw_data[15:8];
-                                        8'h3: data_to_send <= sw_select[7:0];
-                                        8'h4: data_to_send <= sw_select[15:8];
-                                        8'h5: data_to_send <= btn_data[4:0];
-                                        8'h6: data_to_send <= btn_select[4:0];
-                                        8'h7: data_to_send <= led_data[7:0];
-                                        8'h8: data_to_send <= led_data[15:8];
-                                        8'h9: data_to_send <= sev_seg_disp_data[0];
-                                        8'ha: data_to_send <= sev_seg_disp_data[1];
-                                        8'hb: data_to_send <= sev_seg_disp_data[2];
-                                        8'hc: data_to_send <= sev_seg_disp_data[3];
-                                        8'hd: data_to_send <= sev_seg_disp_data[4];
-                                        8'he: data_to_send <= sev_seg_disp_data[5];
-                                        8'hf: data_to_send <= sev_seg_disp_data[6];
-                                        8'h10: data_to_send <= sev_seg_disp_data[7];
-                                    endcase
+                                    memory_read(data_received);
                                     fsm_read <= 1'b0;
                                     fsm_state <= inst_s;
                                 end else begin
@@ -259,20 +235,56 @@ module gpio_grabber(spi_if spi,
                         end
                 data_s: begin
                             memory_write(fsm_address);
-//                            case(fsm_address)
-//                                8'h1: sw_data[7:0]     <= data_received;
-//                                8'h2: sw_data[15:8]    <= data_received;
-//                                8'h3: sw_select[7:0]   <= data_received;
-//                                8'h4: sw_select[15:8]  <= data_received;
-//                                8'h5: btn_data[4:0]    <= data_received;
-//                                8'h6: btn_select[4:0]  <= data_received;
-//                            endcase 
                             fsm_state <= inst_s;                           
                         end
                 default: fsm_state <= inst_s;
             endcase
         end
     end : state_update
+    
+    task memory_clear;
+    input [7:0] address;
+    begin
+        case(address)
+            8'h0: begin
+                        sw_data <= 16'h0;
+                        sw_select <= 16'h0;
+                        btn_data <= 5'h0;
+                        btn_select <= 5'h0;
+                    end
+            8'h1: sw_data[7:0] <= 8'h0;
+            8'h2: sw_data[15:8] <= 8'h0;
+            8'h3: sw_select[7:0] <= 8'h0;
+            8'h4: sw_select[15:8] <= 8'h0; 
+            8'h5: btn_data <= 5'h0;
+            8'h6: btn_select <= 5'h0;
+        endcase
+    end
+    endtask
+    
+    task memory_read;
+    input [7:0] address;
+    begin
+        case(address)
+            8'h1: data_to_send <= sw_data[7:0];
+            8'h2: data_to_send <= sw_data[15:8];
+            8'h3: data_to_send <= sw_select[7:0];
+            8'h4: data_to_send <= sw_select[15:8];
+            8'h5: data_to_send <= btn_data[4:0];
+            8'h6: data_to_send <= btn_select[4:0];
+            8'h7: data_to_send <= led_data[7:0];
+            8'h8: data_to_send <= led_data[15:8];
+            8'h9: data_to_send <= sev_seg_disp_data[0];
+            8'ha: data_to_send <= sev_seg_disp_data[1];
+            8'hb: data_to_send <= sev_seg_disp_data[2];
+            8'hc: data_to_send <= sev_seg_disp_data[3];
+            8'hd: data_to_send <= sev_seg_disp_data[4];
+            8'he: data_to_send <= sev_seg_disp_data[5];
+            8'hf: data_to_send <= sev_seg_disp_data[6];
+            8'h10: data_to_send <= sev_seg_disp_data[7];
+        endcase
+    end
+    endtask
     
     task memory_write;
     input [7:0] address;

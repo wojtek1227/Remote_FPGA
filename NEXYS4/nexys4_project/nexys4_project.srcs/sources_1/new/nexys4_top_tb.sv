@@ -64,6 +64,12 @@ module nexys4_top_tb();
         spi_send(8'hAD);
         spi_send(8'h3);
         spi_send(8'hff);
+        spi_send(8'hAD);
+        spi_send(8'h1);
+        spi_send(8'hcd);
+        spi_send(8'hcd);
+        spi_send(8'h0);
+
 
         #50000000 $finish;
     end

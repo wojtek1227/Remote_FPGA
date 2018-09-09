@@ -10,6 +10,7 @@ parameter display_refresh_rate = 125; // Hz
 //Grabber
 parameter gpio_sampling_rate  = 1000; //Hz
 parameter display_sampling_rate = main_clk_freq; //Hz
+parameter fsm_timeout = 1; //s
 
 //SPI
 parameter ss_active = 1'b0;
