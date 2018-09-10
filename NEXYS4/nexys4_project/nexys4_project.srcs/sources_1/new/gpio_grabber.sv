@@ -82,7 +82,6 @@ module gpio_grabber(spi_if spi,
     state_t fsm_state = inst_s;
     state_t fsm_next_state = inst_s;
     logic fsm_timeout_cnt;
-    parameter fsm_cycles_to_timeout = main_clk_freq/fsm_timeout;
     
     //
     assign spi.miso = tx_data_reg[7];
@@ -186,7 +185,7 @@ module gpio_grabber(spi_if spi,
             end
             if (sclk_rising_edge) begin
                 received_bit_cnt <= received_bit_cnt + 1;
-                rx_data_reg <= {rx_data_reg[6:0], spi.mosi};
+                rx_data_reg <= {rx_data_reg[6:0], mosi_sr[1]};
             end
         end
     end : spi_send_receive
@@ -223,13 +222,12 @@ module gpio_grabber(spi_if spi,
                 addr_s: begin
                             if (rx_data_reg < mem_addr_end) begin
                                 if (fsm_clear) begin
-                                    assert (fsm_clear) $display ("OK. Clear performed");
                                     memory_clear(rx_data_reg);
                                     fsm_state <= inst_s;
                                     fsm_clear <= 1'b0;
                                 end else if (fsm_read) begin
-                                    assert (fsm_read) $display ("OK. Read performed");
                                     memory_read(rx_data_reg);
+                                    fsm_address <= rx_data_reg;
                                     fsm_read <= 1'b0;
                                     fsm_state <= inst_s;
                                 end else begin
@@ -242,7 +240,8 @@ module gpio_grabber(spi_if spi,
                         end
                 data_s: begin
                             memory_write(fsm_address);
-                            fsm_state <= inst_s;                           
+                            fsm_state <= inst_s;
+                            fsm_read <= 1'b0;                           
                         end
                 default: fsm_state <= inst_s;
             endcase
@@ -279,16 +278,17 @@ module gpio_grabber(spi_if spi,
             8'h4: data_to_send <= sw_select[15:8];
             8'h5: data_to_send <= btn_data[4:0];
             8'h6: data_to_send <= btn_select[4:0];
-            8'h7: data_to_send <= led_data[7:0];
-            8'h8: data_to_send <= led_data[15:8];
-            8'h9: data_to_send <= sev_seg_disp_data[0];
-            8'ha: data_to_send <= sev_seg_disp_data[1];
-            8'hb: data_to_send <= sev_seg_disp_data[2];
-            8'hc: data_to_send <= sev_seg_disp_data[3];
-            8'hd: data_to_send <= sev_seg_disp_data[4];
-            8'he: data_to_send <= sev_seg_disp_data[5];
-            8'hf: data_to_send <= sev_seg_disp_data[6];
-            8'h10: data_to_send <= sev_seg_disp_data[7];
+            8'h7: data_to_send <= rgb_data[5:0]; 
+            8'h8: data_to_send <= led_data[7:0];
+            8'h9: data_to_send <= led_data[15:8];
+            8'ha: data_to_send <= sev_seg_disp_data[0];
+            8'hb: data_to_send <= sev_seg_disp_data[1];
+            8'hc: data_to_send <= sev_seg_disp_data[2];
+            8'hd: data_to_send <= sev_seg_disp_data[3];
+            8'he: data_to_send <= sev_seg_disp_data[4];
+            8'hf: data_to_send <= sev_seg_disp_data[5];
+            8'h10: data_to_send <= sev_seg_disp_data[6];
+            8'h11: data_to_send <= sev_seg_disp_data[7];
         endcase
     end
     endtask

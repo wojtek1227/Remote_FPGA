@@ -29,7 +29,7 @@ module dut_example(gpio_if.dut gpio);
     wire [7:0][3:0] all_digits ;
     reg [31:0] refresh_counter = 0;
     reg [2:0] current_digit = 0;
-    reg [31:0] data_to_display = 32'hdeadbeef;
+    reg [31:0] data_to_display = 32'hdeadbef1;
 
     //Buttons and RGB
     parameter btn_sample_rate = 50;          //Buttons sampling rage in Hz
@@ -101,7 +101,7 @@ module dut_example(gpio_if.dut gpio);
     assign {>>{all_digits}} = data_to_display;
     assign single_digit = all_digits[current_digit];
     assign gpio.digits = ~(1 << current_digit);
-    assign gpio.dp = 1'b0;
+    assign gpio.dp = (1 << current_digit) == 4 ? 1 : 0;
     
     always_ff@(posedge gpio.clk)
     begin : refresh_display

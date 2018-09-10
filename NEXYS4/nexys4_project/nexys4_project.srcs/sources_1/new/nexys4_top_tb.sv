@@ -55,25 +55,16 @@ module nexys4_top_tb();
     
     logic [7:0] data_received;
     nexys4_top top(.*);
-    spi_test test(miso, ss, sclk, mosi);
+
     initial
     begin
-//        init_spi;
+        init_spi;
         clk = 0;
         #10 sw = 16'hbeef;
         init_buttons;      
         #10;
-
-//        spi_send(WRITE);
-//        spi_send(8'h4);
-//        spi_send(8'hff);
-//        spi_write(8'hff, 8'h4);
-        
-//        spi_read(8'h7, data_received);
-//        spi_write(8'hcd, 8'h2);
-        
-//        spi_clear(8'h0);
-
+        test_spi_read_write();
+        test_spi_read_all();
         #50000000 $finish;
     end
     
@@ -94,77 +85,101 @@ module nexys4_top_tb();
         end
     endtask
     
-//    task init_spi;
-//        begin
-//            ss = ~ss_active;
-//            sclk = ~sclk_active;
-//            mosi = 1'b0;
+    task init_spi;
+        begin
+            ss = ~ss_active;
+            sclk = ~sclk_active;
+            mosi = 1'b0;
  
-//        end
-//    endtask
+        end
+    endtask
     
-//    task spi_receive;
-//        output [7:0] data_received;
-//        begin
-//            repeat (8) @(posedge sclk) data_received = {data_received[6:0] , miso};
-//        end
-//    endtask
+    task spi_receive;
+        output [7:0] data_received;
+        begin
+            repeat (8) @(posedge sclk) data_received = {data_received[6:0] , miso};
+        end
+    endtask
     
-//    task spi_send;
-//        input [7:0] data_to_send;
-//        integer i;
-//        begin
-//            ss = ss_active;
-//            for (i = 0; i < 7; i++)
-//            begin
-//                mosi = data_to_send[7-i];
-//                sclk = sclk_active;
-//                #(spi_period/2);
-//                sclk = ~sclk_active;
-//                #(spi_period/2);
-//            end
-//            mosi = data_to_send[0];
-//            sclk = sclk_active;
-//            #(spi_period/2);
-//            sclk = ~sclk_active;
-//            #(spi_period/2);
-//            ss = ~ss_active;
-//        end
-//    endtask
+    task spi_send;
+        input [7:0] data_to_send;
+        integer i;
+        begin
+            ss = ss_active;
+            for (i = 0; i < 7; i++)
+            begin
+                mosi = data_to_send[7-i];
+                sclk = sclk_active;
+                #(spi_period/2);
+                sclk = ~sclk_active;
+                #(spi_period/2);
+            end
+            mosi = data_to_send[0];
+            sclk = sclk_active;
+            #(spi_period/2);
+            sclk = ~sclk_active;
+            #(spi_period/2);
+            ss = ~ss_active;
+        end
+    endtask
 
-//    task spi_write;
-//        input [7:0] data;
-//        input [7:0] address;
-//        begin
-//            $display("Writing %h in address %h @ %g\n", data, address, $time); 
-//            spi_send(WRITE);
-//            spi_send(address);
-//            spi_send(data);
-//        end
-//    endtask
+    task spi_write;
+        input [7:0] data;
+        input [7:0] address;
+        begin
+            $display("Writing %h in address %h @ %g\n", data, address, $time); 
+            spi_send(WRITE);
+            spi_send(address);
+            spi_send(data);
+        end
+    endtask
     
-//    task spi_read;
-//        input [7:0] address;
-//        output [7:0] data;
-//        begin
-//            $display("Reading data in address %h @ %g\n", address, $time);
-//            spi_send(READ);
-//            spi_send(address);
-//            fork
-//                spi_send(8'h0);
-//                spi_receive(data);
-//            join
-//            $display ("Data received %h @ %g", data, $time);
-//        end
-//    endtask
+    task spi_read;
+        input [7:0] address;
+        output [7:0] data;
+        begin
+            spi_send(READ);
+            spi_send(address);
+            fork
+                spi_send(8'h0);
+                spi_receive(data);
+            join
+        end
+    endtask
     
-//    task spi_clear;
-//        input [7:0] address;
-//        begin
-//            $display("Clearing data in address %h @%g", address, $time);
-//            spi_send(CLEAR);
-//            spi_send(address);
-//        end
-//    endtask
+    task spi_clear;
+        input [7:0] address;
+        begin
+            $display("Clearing data in address %h @%g", address, $time);
+            spi_send(CLEAR);
+            spi_send(address);
+        end
+    endtask
     
+    task test_spi_read_write;
+        begin
+            automatic logic [7:0] data;
+            for(int i = 1; i < 7; i = i + 1)
+            begin
+                spi_write(i,i);
+            end
+            for(int i = 1; i < 7; i = i + 1)
+            begin
+                spi_read(i,data);
+                assert (data == i) $display("Read value is correct, time:%g", $time);
+            end
+        end
+    endtask
+    
+    task test_spi_read_all;
+        begin
+            automatic logic [7:0] data;
+            for(int i = 0; i < mem_addr_end; i = i + 1)
+            begin
+                spi_read(i, data);
+                $display("Reading address %h, data: %h", i, data);
+            end
+        end
+    endtask
+
 endmodule

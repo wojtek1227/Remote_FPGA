@@ -2,7 +2,7 @@
 `define _parameters_vh_
 
 
-`define _debug_
+//`define _debug_
 //TOP
 parameter main_clk_freq = 100000000; //Hz
 
@@ -19,7 +19,6 @@ parameter gpio_sampling_rate  = 50; //Hz
 parameter gpio_sampling_rate  = 10000000; //Hz
 `endif
 parameter display_sampling_rate = main_clk_freq; //Hz
-parameter fsm_timeout = 1; //s
 
 //SPI
 parameter ss_active = 1'b0;
@@ -54,16 +53,17 @@ parameter sw_select_low_addr    = 8'h3;
 parameter sw_select_high_addr   = 8'h4;
 parameter btn_data_addr         = 8'h5;
 parameter btn_select_addr       = 8'h6;
-parameter led_data_low_addr     = 8'h7;
-parameter led_data_high_addr    = 8'h8;
-parameter digit_0_addr          = 8'h9;
-parameter digit_1_addr          = 8'ha;
-parameter digit_2_addr          = 8'hb;
-parameter digit_3_addr          = 8'hc;
-parameter digit_4_addr          = 8'hd;
-parameter digit_5_addr          = 8'he;
-parameter digit_6_addr          = 8'hf;
-parameter digit_7_addr          = 8'h10;
-parameter mem_addr_end          = 8'h11;
+parameter rgb_data_addr         = 8'h7; 
+parameter led_data_low_addr     = 8'h8;     
+parameter led_data_high_addr    = 8'h9;     
+parameter digit_0_addr          = 8'ha;     
+parameter digit_1_addr          = 8'hb;     
+parameter digit_2_addr          = 8'hc;     
+parameter digit_3_addr          = 8'hd;     
+parameter digit_4_addr          = 8'he;     
+parameter digit_5_addr          = 8'hf;     
+parameter digit_6_addr          = 8'h10;    
+parameter digit_7_addr          = 8'h11;    
+parameter mem_addr_end          = 8'h12;
 
 `endif
