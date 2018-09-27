@@ -20,7 +20,7 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 
-interface spi_if (input wire clk, sclk, mosi, ss, output wire miso);
+interface spi_if (input wire clk, input wire sclk, input wire mosi, input wire ss, output wire miso);
 
 
 endinterface

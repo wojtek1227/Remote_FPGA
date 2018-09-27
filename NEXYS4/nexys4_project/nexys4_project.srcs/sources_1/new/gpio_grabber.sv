@@ -69,7 +69,7 @@ module gpio_grabber(spi_if spi,
     logic [2:0] received_bit_cnt;
     logic [2:0] send_bit_cnt;
     logic [7:0] rx_data_reg =8'b0;
-    logic [7:0] tx_data_reg = 8'haa;;
+    logic [7:0] tx_data_reg = 8'h00;;
     logic [7:0] data_to_send = 8'h0;
     logic data_ready = 1'b0;
     
@@ -172,14 +172,12 @@ module gpio_grabber(spi_if spi,
     begin : spi_send_receive
         if (ss_sr[2] == ~ss_active) begin
             received_bit_cnt <= 3'b0;
-            send_bit_cnt <= 3'b0;
         end else begin
             if (sclk_falling_edge) begin
-                if (send_bit_cnt == 3'h7) begin
+                if (received_bit_cnt == 3'h0) begin
+                    $display("Loading new data @: %g", $time);
                     tx_data_reg <= data_to_send;
-                    send_bit_cnt <= 8'b0;
                 end else begin
-                    send_bit_cnt <= send_bit_cnt + 1;
                     tx_data_reg = {tx_data_reg[6:0], 1'b0};
                 end
             end
@@ -239,9 +237,13 @@ module gpio_grabber(spi_if spi,
                             end
                         end
                 data_s: begin
+//                            if (fsm_read) begin
+//                                memory_read(fsm_address);
+//                            end else begin
                             memory_write(fsm_address);
+//                            end
                             fsm_state <= inst_s;
-                            fsm_read <= 1'b0;                           
+//                            fsm_read <= 1'b0;                           
                         end
                 default: fsm_state <= inst_s;
             endcase

@@ -65,7 +65,8 @@ module nexys4_top_tb();
         #10;
         test_spi_read_write();
         test_spi_read_all();
-        #50000000 $finish;
+        test_read_3x();
+        #5000 $finish;
     end
     
     always #(period/2) clk++;
@@ -161,12 +162,12 @@ module nexys4_top_tb();
             automatic logic [7:0] data;
             for(int i = 1; i < 7; i = i + 1)
             begin
-                spi_write(i,i);
+                spi_write(8'haa,i);
             end
             for(int i = 1; i < 7; i = i + 1)
             begin
                 spi_read(i,data);
-                assert (data == i) $display("Read value is correct, time:%g", $time);
+//                assert (data == i) $display("Read value is correct, time:%g", $time);
             end
         end
     endtask
@@ -176,10 +177,23 @@ module nexys4_top_tb();
             automatic logic [7:0] data;
             for(int i = 0; i < mem_addr_end; i = i + 1)
             begin
+                $display("Reading address %h, %g", i, $time);
                 spi_read(i, data);
-                $display("Reading address %h, data: %h", i, data);
+                $display("Reading address %h, data: %h, %g", i, data, $time);
             end
         end
     endtask
+    
+    task test_read_3x;
+        begin
+            automatic logic [7:0] data;
+            $display("3x read test @:%g", $time);
+            for(int i = 0; i < 9; i = i + 1)
+            begin
+                spi_read(8'h1, data);
+                $display("Data read: %h at: %g", data, $time);
+            end
+        end
+    endtask    
 
 endmodule
