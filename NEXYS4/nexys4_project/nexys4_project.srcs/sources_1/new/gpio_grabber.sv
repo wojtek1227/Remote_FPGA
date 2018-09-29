@@ -19,6 +19,7 @@
 // 
 //////////////////////////////////////////////////////////////////////////////////
 `include "parameters.vh"
+`include "grabber_registers_addr.vh"
 
 module gpio_grabber(spi_if spi,
                     gpio_if.dut gpio_top,
@@ -26,35 +27,52 @@ module gpio_grabber(spi_if spi,
                     );
                     
     //Memory registers
-    reg [7:0] control_register = 8'h0;
-    reg [15:0] sw_data = 16'h0;
-    reg [15:0] sw_select = 16'h0;
-    reg [4:0] btn_data = 5'h0;
-    reg [4:0] btn_select = 5'h0;
-    reg [15:0] led_data = 16'h0;
-    reg [5:0] rgb_data = 6'h0;
+    logic [7:0] control_register = 8'h3;
+    logic [15:0] sw_data = 16'h0;
+    logic [15:0] sw_select = 16'h0;
+    logic [4:0] btn_data = 5'h0;
+    logic [4:0] btn_select = 5'h0;
+    logic [15:0] led_data = 16'h0;
+    logic [5:0] rgb_data = 6'h0;
+    
+    //Demuxed display data
+    logic [7:0][7:0] sev_seg_disp_data = {8{8'h0}};
+    
+    //Overflow registers for sampling counters LE addresssing
+    logic [31:0] display_sampling_cnt_ovf = default_gpio_cycles_to_sample;
+    logic [31:0] gpio_sampling_cnt_ovf = default_display_cycles_to_sample;
+    
+    wire gpio_sampling_enable = control_register[0];
+    wire display_sampling_enable = control_register[1];
      
-    reg [7:0][7:0] sev_seg_disp_data = {8{8'h0}};
-     
-    reg [6:0] segments_data = 7'h0;
-    reg dp_data = 1'b0;
-    reg [7:0] digits_data = 8'h0;
-     
-    wire [4:0] btn = {gpio_dut.btn_center, gpio_dut.btn_up, gpio_dut.btn_left, gpio_dut.btn_right, gpio_dut.btn_down};
-    wire [5:0] rgb = {gpio_dut.led17_R, gpio_dut.led17_G, gpio_dut.led17_B,
-                        gpio_dut.led16_R, gpio_dut.led16_G, gpio_dut.led16_B};
+    wire [4:0] btn = {gpio_dut.btn_center, 
+                        gpio_dut.btn_up,
+                        gpio_dut.btn_left, 
+                        gpio_dut.btn_right,
+                        gpio_dut.btn_down};
+                        
+    wire [5:0] rgb = {gpio_dut.led17_R, 
+                        gpio_dut.led17_G, 
+                        gpio_dut.led17_B,
+                        gpio_dut.led16_R, 
+                        gpio_dut.led16_G, 
+                        gpio_dut.led16_B};
+    
+    //Sampled display data
+    logic [6:0] segments_data = 7'h0;
+    logic dp_data = 1'b0;
+    logic [7:0] digits_data = 8'h0;
     
     //LED and display synchronization registers
-    reg [1:0][15:0] led_sr;
-    reg [1:0][5:0] rgb_sr;
-    reg [1:0][6:0] segments_sr;
-    reg [1:0] dp_sr;
-    reg [1:0][7:0] digits_sr;
+    logic [1:0][15:0] led_sr;
+    logic [1:0][5:0] rgb_sr;
+    logic [1:0][6:0] segments_sr;
+    logic [1:0] dp_sr;
+    logic [1:0][7:0] digits_sr;
     
     //GPIOs and display signals
-    parameter gpio_cycles_to_sample = main_clk_freq / gpio_sampling_rate;
+    
     logic [31:0] gpio_sampling_cnt = 32'h0;
-    parameter display_cycles_to_sample = main_clk_freq / display_sampling_rate;
     logic [31:0] display_sampling_cnt = 32'h0;
     
 
@@ -66,12 +84,11 @@ module gpio_grabber(spi_if spi,
     //SPI signals
     wire sclk_rising_edge = (sclk_sr[2:1] == 2'b01);
     wire sclk_falling_edge = (sclk_sr[2:1] == 2'b10);
-    logic [2:0] received_bit_cnt;
-    logic [2:0] send_bit_cnt;
-    logic [7:0] rx_data_reg =8'b0;
-    logic [7:0] tx_data_reg = 8'h00;;
-    logic [7:0] data_to_send = 8'h0;
-    logic data_ready = 1'b0;
+    logic [2:0] spi_received_bit_cnt;
+    logic [7:0] spi_rx_data_reg =8'b0;
+    logic [7:0] spi_tx_data_reg = 8'h00;;
+    logic [7:0] spi_data_to_send = 8'h0;
+    logic spi_data_ready = 1'b0;
     
     //FSM signals
     typedef enum logic[1:0] {inst_s = 2'b0, addr_s = 2'b01, data_s = 2'b10} state_t;
@@ -84,11 +101,10 @@ module gpio_grabber(spi_if spi,
     logic fsm_timeout_cnt;
     
     //
-    assign spi.miso = tx_data_reg[7];
+    assign spi.miso = spi_tx_data_reg[7];
     
     //Muxes for switches and buttons
-    genvar i;
-    for (i = 0; i < 16; i = i + 1)
+    for (genvar i = 0; i < 16; i = i + 1)
     begin
         assign gpio_dut.sw[i] = sw_select[i] ? sw_data[i] : gpio_top.sw[i];
     end
@@ -101,6 +117,7 @@ module gpio_grabber(spi_if spi,
     
     //Pass data from dut to top
     assign gpio_top.led = gpio_dut.led;
+    
     assign gpio_top.led16_B = gpio_dut.led16_B;
     assign gpio_top.led16_G = gpio_dut.led16_G;
     assign gpio_top.led16_R = gpio_dut.led16_R;
@@ -125,25 +142,29 @@ module gpio_grabber(spi_if spi,
     //Sampling of LED
     always_ff@(posedge gpio_top.clk)
     begin : gpio_sampling
-        if (gpio_sampling_cnt == gpio_cycles_to_sample - 1) begin
-            gpio_sampling_cnt <= 32'h0;
-            led_data <= led_sr[1];
-            rgb_data <= rgb_sr[1];
-        end else begin
-            gpio_sampling_cnt <= gpio_sampling_cnt + 1;
+        if (gpio_sampling_enable) begin
+            if (gpio_sampling_cnt == gpio_sampling_cnt_ovf) begin
+                gpio_sampling_cnt <= 32'h0;
+                led_data <= led_sr[1];
+                rgb_data <= rgb_sr[1];
+            end else begin
+                gpio_sampling_cnt <= gpio_sampling_cnt + 1;
+            end
         end
     end : gpio_sampling
     
     //Sampling of 7seg display
     always_ff@(posedge gpio_top.clk)
     begin : display_sampling
-        if (display_sampling_cnt == display_cycles_to_sample - 1) begin
-            display_sampling_cnt <= 32'h0;
-            segments_data <= segments_sr[1];
-            dp_data <= dp_sr[1];
-            digits_data <= digits_sr[1];
-        end else begin
-            display_sampling_cnt <= display_sampling_cnt + 1;
+        if (display_sampling_enable) begin
+            if (display_sampling_cnt == display_sampling_cnt_ovf) begin
+                display_sampling_cnt <= 32'h0;
+                segments_data <= segments_sr[1];
+                dp_data <= dp_sr[1];
+                digits_data <= digits_sr[1];
+            end else begin
+                display_sampling_cnt <= display_sampling_cnt + 1;
+            end
         end
     end : display_sampling
     
@@ -171,38 +192,38 @@ module gpio_grabber(spi_if spi,
     always_ff@(posedge spi.clk)
     begin : spi_send_receive
         if (ss_sr[2] == ~ss_active) begin
-            received_bit_cnt <= 3'b0;
+            spi_received_bit_cnt <= 3'b0;
+            spi_tx_data_reg <= 8'h0;
         end else begin
             if (sclk_falling_edge) begin
-                if (received_bit_cnt == 3'h0) begin
-                    $display("Loading new data @: %g", $time);
-                    tx_data_reg <= data_to_send;
+                if (spi_received_bit_cnt == 3'h0) begin
+                    spi_tx_data_reg <= spi_data_to_send;
                 end else begin
-                    tx_data_reg = {tx_data_reg[6:0], 1'b0};
+                    spi_tx_data_reg = {spi_tx_data_reg[6:0], 1'b0};
                 end
             end
             if (sclk_rising_edge) begin
-                received_bit_cnt <= received_bit_cnt + 1;
-                rx_data_reg <= {rx_data_reg[6:0], mosi_sr[1]};
+                spi_received_bit_cnt <= spi_received_bit_cnt + 1;
+                spi_rx_data_reg <= {spi_rx_data_reg[6:0], mosi_sr[1]};
             end
         end
     end : spi_send_receive
     
     always_ff@(posedge gpio_top.clk)
-    begin : spi_data_ready
-        if ((received_bit_cnt == 3'h7) && sclk_rising_edge)
-            data_ready <= 1'b1;
+    begin : spi_data_received
+        if ((spi_received_bit_cnt == 3'h7) && sclk_rising_edge)
+            spi_data_ready <= 1'b1;
         else
-            data_ready <= 1'b0;     
-    end : spi_data_ready
+            spi_data_ready <= 1'b0;     
+    end : spi_data_received
     
     always_ff@(posedge gpio_top.clk)
     begin : state_update
-        if (data_ready) begin
+        if (spi_data_ready) begin
             case(fsm_state)
                 inst_s: begin
-                            data_to_send <= 8'h0;
-                            case(rx_data_reg)
+                            spi_data_to_send <= 8'h0;
+                            case(spi_rx_data_reg)
                                 CLEAR: begin
                                             fsm_clear <= 1'b1;
                                             fsm_state <= addr_s;
@@ -218,32 +239,22 @@ module gpio_grabber(spi_if spi,
                             endcase
                         end
                 addr_s: begin
-                            if (rx_data_reg < mem_addr_end) begin
-                                if (fsm_clear) begin
-                                    memory_clear(rx_data_reg);
-                                    fsm_state <= inst_s;
-                                    fsm_clear <= 1'b0;
-                                end else if (fsm_read) begin
-                                    memory_read(rx_data_reg);
-                                    fsm_address <= rx_data_reg;
-                                    fsm_read <= 1'b0;
-                                    fsm_state <= inst_s;
-                                end else begin
-                                    fsm_address <= rx_data_reg;
-                                    fsm_state <= data_s;
-                                end
-                            end else begin
+                            if (fsm_clear) begin
+                                memory_clear(spi_rx_data_reg);
                                 fsm_state <= inst_s;
+                                fsm_clear <= 1'b0;
+                            end else if (fsm_read) begin
+                                memory_read(spi_rx_data_reg);
+                                fsm_read <= 1'b0;
+                                fsm_state <= inst_s;
+                            end else begin
+                                fsm_address <= spi_rx_data_reg;
+                                fsm_state <= data_s;
                             end
                         end
                 data_s: begin
-//                            if (fsm_read) begin
-//                                memory_read(fsm_address);
-//                            end else begin
                             memory_write(fsm_address);
-//                            end
-                            fsm_state <= inst_s;
-//                            fsm_read <= 1'b0;                           
+                            fsm_state <= inst_s;                         
                         end
                 default: fsm_state <= inst_s;
             endcase
@@ -253,20 +264,28 @@ module gpio_grabber(spi_if spi,
     task memory_clear;
     input [7:0] address;
     begin
-        case(address)
-            8'h0: begin
-                        sw_data <= 16'h0;
-                        sw_select <= 16'h0;
-                        btn_data <= 5'h0;
-                        btn_select <= 5'h0;
-                    end
-            8'h1: sw_data[7:0] <= 8'h0;
-            8'h2: sw_data[15:8] <= 8'h0;
-            8'h3: sw_select[7:0] <= 8'h0;
-            8'h4: sw_select[15:8] <= 8'h0; 
-            8'h5: btn_data <= 5'h0;
-            8'h6: btn_select <= 5'h0;
-        endcase
+        if (address < rw_mem_end_addr) begin
+            case(address)
+                8'h0: begin
+                            sw_data <= sw_data_init_value;
+                            sw_select <= sw_select_init_value;
+                            btn_data <= btn_data_init_value;
+                            btn_select <= btn_select_init_value;
+                            control_register <= control_register_init_value;
+                            gpio_sampling_cnt_ovf <= default_gpio_cycles_to_sample;
+                            display_sampling_cnt_ovf <= default_display_cycles_to_sample;
+                        end
+                sw_data_low_addr                : sw_data[7:0] <= sw_data_init_value[7:0];
+                sw_data_high_addr               : sw_data[15:8] <= sw_data_init_value[15:8];
+                sw_select_low_addr              : sw_select[7:0] <= sw_select_init_value[7:0];
+                sw_select_high_addr             : sw_select[15:8] <= sw_select_init_value[15:8]; 
+                btn_data_addr                   : btn_data <= btn_data_init_value;
+                btn_select_addr                 : btn_select <= btn_select_init_value;
+                control_register_addr           : control_register <= control_register_init_value;
+                display_sampling_cnt_ovf_addr   : display_sampling_cnt_ovf <= default_display_cycles_to_sample;
+                gpio_sampling_cnt_ovf_addr      : gpio_sampling_cnt_ovf <= default_gpio_cycles_to_sample;
+            endcase
+        end
     end
     endtask
     
@@ -274,23 +293,33 @@ module gpio_grabber(spi_if spi,
     input [7:0] address;
     begin
         case(address)
-            8'h1: data_to_send <= sw_data[7:0];
-            8'h2: data_to_send <= sw_data[15:8];
-            8'h3: data_to_send <= sw_select[7:0];
-            8'h4: data_to_send <= sw_select[15:8];
-            8'h5: data_to_send <= btn_data[4:0];
-            8'h6: data_to_send <= btn_select[4:0];
-            8'h7: data_to_send <= rgb_data[5:0]; 
-            8'h8: data_to_send <= led_data[7:0];
-            8'h9: data_to_send <= led_data[15:8];
-            8'ha: data_to_send <= sev_seg_disp_data[0];
-            8'hb: data_to_send <= sev_seg_disp_data[1];
-            8'hc: data_to_send <= sev_seg_disp_data[2];
-            8'hd: data_to_send <= sev_seg_disp_data[3];
-            8'he: data_to_send <= sev_seg_disp_data[4];
-            8'hf: data_to_send <= sev_seg_disp_data[5];
-            8'h10: data_to_send <= sev_seg_disp_data[6];
-            8'h11: data_to_send <= sev_seg_disp_data[7];
+            sw_data_low_addr    : spi_data_to_send <= sw_data[7:0];
+            sw_data_high_addr   : spi_data_to_send <= sw_data[15:8];
+            sw_select_low_addr  : spi_data_to_send <= sw_select[7:0];
+            sw_select_high_addr : spi_data_to_send <= sw_select[15:8];
+            btn_data_addr       : spi_data_to_send <= btn_data[4:0];
+            btn_select_addr     : spi_data_to_send <= btn_select[4:0];
+            rgb_data_addr       : spi_data_to_send <= rgb_data[5:0]; 
+            led_data_low_addr   : spi_data_to_send <= led_data[7:0];
+            led_data_high_addr  : spi_data_to_send <= led_data[15:8];
+            digit_0_data_addr   : spi_data_to_send <= sev_seg_disp_data[0];
+            digit_1_data_addr   : spi_data_to_send <= sev_seg_disp_data[1];
+            digit_2_data_addr   : spi_data_to_send <= sev_seg_disp_data[2];
+            digit_3_data_addr   : spi_data_to_send <= sev_seg_disp_data[3];
+            digit_4_data_addr   : spi_data_to_send <= sev_seg_disp_data[4];
+            digit_5_data_addr   : spi_data_to_send <= sev_seg_disp_data[5];
+            digit_6_data_addr   : spi_data_to_send <= sev_seg_disp_data[6];
+            digit_7_data_addr   : spi_data_to_send <= sev_seg_disp_data[7];
+            control_register_addr               : spi_data_to_send <= control_register;
+            display_sampling_cnt_ovf_addr       : spi_data_to_send <= display_sampling_cnt_ovf[7:0];
+            display_sampling_cnt_ovf_addr + 1   : spi_data_to_send <= display_sampling_cnt_ovf[15:8];
+            display_sampling_cnt_ovf_addr + 2   : spi_data_to_send <= display_sampling_cnt_ovf[23:16];
+            display_sampling_cnt_ovf_addr + 3   : spi_data_to_send <= display_sampling_cnt_ovf[31:24];
+            gpio_sampling_cnt_ovf_addr          : spi_data_to_send <= gpio_sampling_cnt_ovf[7:0];
+            gpio_sampling_cnt_ovf_addr + 1      : spi_data_to_send <= gpio_sampling_cnt_ovf[15:8];
+            gpio_sampling_cnt_ovf_addr + 2      : spi_data_to_send <= gpio_sampling_cnt_ovf[23:16];
+            gpio_sampling_cnt_ovf_addr + 3      : spi_data_to_send <= gpio_sampling_cnt_ovf[31:24];
+            default                             : spi_data_to_send <= 8'h0;
         endcase
     end
     endtask
@@ -298,14 +327,25 @@ module gpio_grabber(spi_if spi,
     task memory_write;
     input [7:0] address;
     begin
-        case(address)
-            8'h1: sw_data[7:0]     <= rx_data_reg;
-            8'h2: sw_data[15:8]    <= rx_data_reg;
-            8'h3: sw_select[7:0]   <= rx_data_reg;
-            8'h4: sw_select[15:8]  <= rx_data_reg;
-            8'h5: btn_data[4:0]    <= rx_data_reg;
-            8'h6: btn_select[4:0]  <= rx_data_reg;
-        endcase
+        if (address < rw_mem_end_addr) begin
+            case(address)
+                sw_data_low_addr    : sw_data[7:0]     <= spi_rx_data_reg;
+                sw_data_high_addr   : sw_data[15:8]    <= spi_rx_data_reg;
+                sw_select_low_addr  : sw_select[7:0]   <= spi_rx_data_reg;
+                sw_select_high_addr : sw_select[15:8]  <= spi_rx_data_reg;
+                btn_data_addr       : btn_data[4:0]    <= spi_rx_data_reg;
+                btn_select_addr     : btn_select[4:0]  <= spi_rx_data_reg;
+                control_register_addr : control_register <= spi_rx_data_reg;
+                display_sampling_cnt_ovf_addr       : display_sampling_cnt_ovf[7:0]     <= spi_rx_data_reg;
+                display_sampling_cnt_ovf_addr + 1   : display_sampling_cnt_ovf[15:8]    <= spi_rx_data_reg;
+                display_sampling_cnt_ovf_addr + 2   : display_sampling_cnt_ovf[23:16]   <= spi_rx_data_reg;
+                display_sampling_cnt_ovf_addr + 3   : display_sampling_cnt_ovf[31:24]   <= spi_rx_data_reg;
+                gpio_sampling_cnt_ovf_addr          : gpio_sampling_cnt_ovf[7:0]        <= spi_rx_data_reg;
+                gpio_sampling_cnt_ovf_addr + 1      : gpio_sampling_cnt_ovf[15:8]       <= spi_rx_data_reg;
+                gpio_sampling_cnt_ovf_addr + 2      : gpio_sampling_cnt_ovf[23:16]      <= spi_rx_data_reg;
+                gpio_sampling_cnt_ovf_addr + 3      : gpio_sampling_cnt_ovf[31:24]      <= spi_rx_data_reg;
+            endcase
+        end
     end
     endtask                 
 endmodule
