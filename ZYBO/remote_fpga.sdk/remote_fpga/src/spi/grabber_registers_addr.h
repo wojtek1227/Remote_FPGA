@@ -42,9 +42,9 @@
 #define DIGIT_2_DATA_ADDR 0x85;
 #define DIGIT_3_DATA_ADDR 0x86;
 #define DIGIT_4_DATA_ADDR 0x87;
-#define DIGIT_5_DATA_ADDR 0x89;
-#define DIGIT_6_DATA_ADDR 0x8a;
-#define DIGIT_7_DATA_ADDR 0x8b;
+#define DIGIT_5_DATA_ADDR 0x88;
+#define DIGIT_6_DATA_ADDR 0x89;
+#define DIGIT_7_DATA_ADDR 0x8a;
 
 #define RO_MEM_ADDR_END 0x8c;
 

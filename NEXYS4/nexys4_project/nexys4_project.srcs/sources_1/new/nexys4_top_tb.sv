@@ -19,6 +19,7 @@
 // 
 //////////////////////////////////////////////////////////////////////////////////
 `include "parameters.vh"
+`include "grabber_registers_addr.vh"
 
 
 module nexys4_top_tb();
@@ -66,7 +67,7 @@ module nexys4_top_tb();
         test_spi_read_write();
         test_spi_read_all();
         test_read_3x();
-        #5000 $finish;
+        #50000000 $finish;
     end
     
     always #(period/2) clk++;
@@ -125,8 +126,8 @@ module nexys4_top_tb();
     endtask
 
     task spi_write;
-        input [7:0] data;
         input [7:0] address;
+        input [7:0] data;
         begin
             $display("Writing %h in address %h @ %g\n", data, address, $time); 
             spi_send(WRITE);
@@ -160,10 +161,12 @@ module nexys4_top_tb();
     task test_spi_read_write;
         begin
             automatic logic [7:0] data;
-            for(int i = 1; i < 7; i = i + 1)
-            begin
-                spi_write(8'haa,i);
-            end
+            spi_write(1, 8'haa);
+            spi_write(2, 8'haa);
+            spi_write(3, 8'hff);
+            spi_write(4, 8'hff);
+            spi_write(5, 8'h1);
+            spi_write(6, 8'hff);
             for(int i = 1; i < 7; i = i + 1)
             begin
                 spi_read(i,data);
@@ -175,7 +178,7 @@ module nexys4_top_tb();
     task test_spi_read_all;
         begin
             automatic logic [7:0] data;
-            for(int i = 0; i < mem_addr_end; i = i + 1)
+            for(int i = 0; i < btn_select_addr + 1; i = i + 1)
             begin
                 $display("Reading address %h, %g", i, $time);
                 spi_read(i, data);

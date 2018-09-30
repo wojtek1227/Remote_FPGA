@@ -27,11 +27,11 @@ module gpio_grabber(spi_if spi,
                     );
                     
     //Memory registers
-    logic [7:0] control_register = 8'h3;
-    logic [15:0] sw_data = 16'h0;
-    logic [15:0] sw_select = 16'h0;
-    logic [4:0] btn_data = 5'h0;
-    logic [4:0] btn_select = 5'h0;
+    logic [7:0] control_register = control_register_init_value;
+    logic [15:0] sw_data = sw_data_init_value;
+    logic [15:0] sw_select = sw_select_init_value;
+    logic [4:0] btn_data = btn_data_init_value;
+    logic [4:0] btn_select = btn_select_init_value;
     logic [15:0] led_data = 16'h0;
     logic [5:0] rgb_data = 6'h0;
     
@@ -39,8 +39,8 @@ module gpio_grabber(spi_if spi,
     logic [7:0][7:0] sev_seg_disp_data = {8{8'h0}};
     
     //Overflow registers for sampling counters LE addresssing
-    logic [31:0] display_sampling_cnt_ovf = default_gpio_cycles_to_sample;
-    logic [31:0] gpio_sampling_cnt_ovf = default_display_cycles_to_sample;
+    logic [31:0] display_sampling_cnt_ovf = default_display_cycles_to_sample;
+    logic [31:0] gpio_sampling_cnt_ovf = default_gpio_cycles_to_sample;
     
     wire gpio_sampling_enable = control_register[0];
     wire display_sampling_enable = control_register[1];
@@ -143,7 +143,7 @@ module gpio_grabber(spi_if spi,
     always_ff@(posedge gpio_top.clk)
     begin : gpio_sampling
         if (gpio_sampling_enable) begin
-            if (gpio_sampling_cnt == gpio_sampling_cnt_ovf) begin
+            if (gpio_sampling_cnt == gpio_sampling_cnt_ovf - 1) begin
                 gpio_sampling_cnt <= 32'h0;
                 led_data <= led_sr[1];
                 rgb_data <= rgb_sr[1];
@@ -157,7 +157,7 @@ module gpio_grabber(spi_if spi,
     always_ff@(posedge gpio_top.clk)
     begin : display_sampling
         if (display_sampling_enable) begin
-            if (display_sampling_cnt == display_sampling_cnt_ovf) begin
+            if (display_sampling_cnt == display_sampling_cnt_ovf - 1) begin
                 display_sampling_cnt <= 32'h0;
                 segments_data <= segments_sr[1];
                 dp_data <= dp_sr[1];

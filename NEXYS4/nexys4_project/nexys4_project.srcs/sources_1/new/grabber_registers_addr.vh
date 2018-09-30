@@ -4,7 +4,7 @@
 //Instructions
 parameter CLEAR = 8'hcd;
 parameter WRITE = 8'had;
-parameter READ = 8'hed;
+parameter READ  = 8'hed;
 
 //Addresses
 //RW registers
@@ -29,7 +29,7 @@ parameter display_sampling_cnt_ovf_addr  = 8'h8;
 //Byte 3 at 8'hf 
 parameter gpio_sampling_cnt_ovf_addr = 8'hc;
 //Increment this address when adding new RW registers
-parameter rw_mem_end_addr          = 8'h10;
+parameter rw_mem_end_addr       = 8'h10;
 
 //RO registers
 parameter ro_mem_start          = 8'h80;
@@ -41,10 +41,10 @@ parameter digit_1_data_addr     = 8'h84;
 parameter digit_2_data_addr     = 8'h85;     
 parameter digit_3_data_addr     = 8'h86;     
 parameter digit_4_data_addr     = 8'h87;     
-parameter digit_5_data_addr     = 8'h89;     
-parameter digit_6_data_addr     = 8'h8a;    
-parameter digit_7_data_addr     = 8'h8b;
+parameter digit_5_data_addr     = 8'h88;     
+parameter digit_6_data_addr     = 8'h89;    
+parameter digit_7_data_addr     = 8'h8a;
 
-parameter ro_mem_addr_end          = 8'h8c;
+parameter ro_mem_addr_end       = 8'h8c;
 
 `endif /* _GRABBER_REGISTERS_ADDR_H_ */
