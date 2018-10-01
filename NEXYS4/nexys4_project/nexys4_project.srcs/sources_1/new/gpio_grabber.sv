@@ -150,6 +150,8 @@ module gpio_grabber(spi_if spi,
             end else begin
                 gpio_sampling_cnt <= gpio_sampling_cnt + 1;
             end
+        end else begin 
+            gpio_sampling_cnt <= 32'h0;
         end
     end : gpio_sampling
     
@@ -165,6 +167,8 @@ module gpio_grabber(spi_if spi,
             end else begin
                 display_sampling_cnt <= display_sampling_cnt + 1;
             end
+        end else begin
+            display_sampling_cnt <= 32'h0;
         end
     end : display_sampling
     
