@@ -1,6 +1,6 @@
 
 set verilog_header "C:/Users/caput/OneDrive/Praca_Magisterska/Remote_FPGA/NEXYS4/nexys4_project/nexys4_project.srcs/sources_1/new/grabber_registers_addr.vh"
-set c_header "C:/Users/caput/OneDrive/Praca_Magisterska/Remote_FPGA/ZYBO/remote_fpga.sdk/remote_fpga/src/spi/grabber_registers_addr.h"
+set c_header "C:/Users/caput/OneDrive/Praca_Magisterska/Remote_FPGA/ZYBO/remote_fpga/remote_fpga.sdk/remote_fpga/src/spi/grabber_registers_addr.h"
 
 set verilog_header_fp [open $verilog_header "r"]
 set c_header_fp [open $c_header w+]

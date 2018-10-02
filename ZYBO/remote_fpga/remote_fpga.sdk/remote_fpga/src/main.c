@@ -37,6 +37,9 @@
 #include "lwip/init.h"
 #include "lwip/inet.h"
 
+#include "queue.h"
+#include "packet_structures.h"
+
 #if LWIP_IPV6==1
 #include "lwip/ip6_addr.h"
 #include "lwip/ip6.h"
@@ -229,6 +232,8 @@ void main_thread(void *p)
 
 int main()
 {
+	QueueHandle_t Queue_received_inst = xQueueCreate(3, sizeof(packet_t));
+	QueueHandle_t Queue_data_to_send = xQueueCreate(3, sizeof(packet_t));
 	main_thread_handle = sys_thread_new("main_thread", main_thread, 0,
 			THREAD_STACKSIZE, DEFAULT_THREAD_PRIO);
 	vTaskStartScheduler();

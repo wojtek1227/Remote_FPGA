@@ -6,8 +6,10 @@
  */
 #include "spi_thread.h"
 #include "stdbool.h"
-
+#include "grabber_registers_addr.h"
+#define SPI_THREAD_STACKSIZE 1024
 static XSpiPs spi;
+static u8 leds_and_display_data[RO_MEM_ADDR_END - RO_MEM_ADDR_START] = {0};
 
 void InitSPI(void)
 {
@@ -22,17 +24,33 @@ XSpiPs* GetSPIHandle(void)
 	return &spi;
 }
 
+void spi_read_all_outputs(void)
+{
+	u8 write_buffer[3];
+	u8 read_buffer[3];
+	write_buffer[0] = READ;
+	write_buffer[1] = RO_MEM_ADDR_START;
+	write_buffer[3] = 0;
+	for(u8 i = 0; i < sizeof(leds_and_display_data); i++)
+	{
+		XSpiPs_PolledTransfer(&spi, &write_buffer + i, &read_buffer, 3);
+		leds_and_display_data[i] = read_buffer[3];
+
+	}
+}
+
 void spi_thread(void *p)
 {
 	volatile u8 x;
 	while(1)
 	{
-
+		x++;
 	}
 }
 
-void start_spi_thread(void)
+void start_spi_thread(void *p)
 {
 	InitSPI();
+	sys_thread_new("SPI thread", spi_thread, (void *)p, SPI_THREAD_STACKSIZE);
 
 }

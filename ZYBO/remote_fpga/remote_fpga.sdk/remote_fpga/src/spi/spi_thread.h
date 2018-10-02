@@ -12,6 +12,6 @@
 
 void InitSPI(void);
 XSpiPs* GetSPIHandle(void);
-void start_spi_thread(void);
+void start_spi_thread(void *p);
 
 #endif /* __SPI_THREAD_H_ */

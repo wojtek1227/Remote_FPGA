@@ -32,7 +32,7 @@ parameter gpio_sampling_cnt_ovf_addr = 8'hc;
 parameter rw_mem_end_addr       = 8'h10;
 
 //RO registers
-parameter ro_mem_start          = 8'h80;
+parameter ro_mem_addr_start     = 8'h80;
 parameter rgb_data_addr         = 8'h80; 
 parameter led_data_low_addr     = 8'h81;     
 parameter led_data_high_addr    = 8'h82;     
@@ -45,6 +45,6 @@ parameter digit_5_data_addr     = 8'h88;
 parameter digit_6_data_addr     = 8'h89;    
 parameter digit_7_data_addr     = 8'h8a;
 
-parameter ro_mem_addr_end       = 8'h8c;
+parameter ro_mem_addr_end       = 8'h8b;
 
 `endif /* _GRABBER_REGISTERS_ADDR_H_ */
