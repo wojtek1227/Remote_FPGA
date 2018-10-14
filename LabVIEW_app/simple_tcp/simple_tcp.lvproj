@@ -29,6 +29,8 @@
 				<Item Name="spi_instructions.ctl" Type="VI" URL="../spi_instructions.ctl"/>
 			</Item>
 		</Item>
+		<Item Name="backup.vi" Type="VI" URL="../backup.vi"/>
+		<Item Name="backup2.vi" Type="VI" URL="../backup2.vi"/>
 		<Item Name="cluster_to_byte_data.vi" Type="VI" URL="../cluster_to_byte_data.vi"/>
 		<Item Name="main.vi" Type="VI" URL="../main.vi"/>
 		<Item Name="remote_fpga.vi" Type="VI" URL="../remote_fpga.vi"/>

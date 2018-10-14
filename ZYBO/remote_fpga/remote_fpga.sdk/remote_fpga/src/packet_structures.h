@@ -16,13 +16,13 @@ typedef enum
 	HDMI = 3
 }packet_type_t;
 
-typedef struct
+typedef struct __attribute__((__packed__))
 {
 	packet_type_t type;
 	u16 packet_id;
 	u16 packets_left;
 	u16 payload_size;
-	u8 payload[11];
+	u8 payload[3];
 }packet_t;
 
 typedef union

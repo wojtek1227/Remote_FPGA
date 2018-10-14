@@ -33,6 +33,7 @@
 #include "tcp_server_thread.h"
 
 #include "../spi/spi_thread.h"
+#include "../packet_structures.h"
 
 extern struct netif server_netif;
 
@@ -68,20 +69,64 @@ static void print_tcp_conn_stats(int sock)
 void tcp_server_thread(void *p)
 {
 	char recv_buf[RECV_BUF_SIZE];
+	static char thread_id;
+	thread_id++;
+	packet_t* recv;
+	recv = (packet_t*) recv_buf;
 	char data_rec[5];
 	int read_bytes;
+	volatile u8 x = 0;
 	int sock = *((int *)p);
 	InitSPI();
 	print_tcp_conn_stats(sock);
-
+	char data[] =
+	{
+			0x01, 0x0,
+			0x0,  0x0,
+			0x0,  0x0,
+			0x16,
+			0x80, 0x4,
+			0x81, 0xf,
+			0x82, 0xf0,
+			0x83, 0xfe,
+			0x84, 0xfd,
+			0x85, 0xfb,
+			0x86, 0xf7,
+			0x87, 0xef,
+			0x88, 0xdf,
+			0x89, 0xbf,
+			0x8a, 0x7f
+	};
+	const char led_low[] = { 0xed, 0x81, 0x00};
+	const char led_high[] = { 0xed, 0x82, 0x00};
+	xil_printf("Thread id %d\r\n", thread_id);
 	while (1) {
-		if ((read_bytes = lwip_recvfrom(sock, recv_buf, RECV_BUF_SIZE,
-						0, NULL, NULL)) > 0) {
-			xil_printf("Received %02X %02X %02X\r\n", recv_buf[0], recv_buf[1], recv_buf[2]);
-			XSpiPs_PolledTransfer(GetSPIHandle(), &recv_buf, &data_rec, 3);
-			lwip_write(sock, data_rec, read_bytes);
-			xil_printf("Spi received %02X %02X %02X\r\n", data_rec[0], data_rec[1], data_rec[2]);
-		}
+//			data[12] = x;
+//			data[14] = ~x;
+
+//
+			XSpiPs_PolledTransfer(GetSPIHandle(), led_low, &data_rec, 3);
+			xil_printf("Spi led low %02X %02X %02X\r\n", data_rec[0], data_rec[1], data_rec[2]);
+			data[10] = data_rec[2];
+			XSpiPs_PolledTransfer(GetSPIHandle(), led_high, &data_rec, 3);
+			xil_printf("Spi led high %02X %02X %02X\r\n", data_rec[0], data_rec[1], data_rec[2]);
+			data[12] = data_rec[2];
+			xil_printf("data12 %d data 14 %d\r\n", data[12], data[14]);
+//			xil_printf("Writing %d \r\n", sizeof(data));
+			x = lwip_write(sock, data, sizeof(data));
+//			xil_printf("%d bytes written \r\n", x);
+//			xil_printf("Running \r\n");
+			if ((read_bytes = lwip_recvfrom(sock, recv_buf, RECV_BUF_SIZE,
+					MSG_DONTWAIT, NULL, NULL)) > 0) {
+
+				xil_printf("Received %02X %02X %02X\r\n", recv->payload[0], recv->payload[1], recv->payload[2]);
+				XSpiPs_PolledTransfer(GetSPIHandle(), recv->payload, &data_rec, 3);
+	//			lwip_write(sock, data_rec, read_bytes);
+				xil_printf("Spi received %02X %02X %02X\r\n", data_rec[0], data_rec[1], data_rec[2]);
+////				close(sock);
+			}
+			vTaskDelay(200/portTICK_PERIOD_MS);
+
 	}
 
 	/* close connection */

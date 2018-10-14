@@ -50,9 +50,11 @@
 extern volatile int dhcp_timoutcntr;
 err_t dhcp_start(struct netif *netif);
 #endif
-#define DEFAULT_IP_ADDRESS "172.16.1.3"
+//#define DEFAULT_IP_ADDRESS "172.16.1.3"
+#define DEFAULT_IP_ADDRESS "192.168.1.10"
 #define DEFAULT_IP_MASK "255.255.255.0"
-#define DEFAULT_GW_ADDRESS "172.16.1.0"
+//#define DEFAULT_GW_ADDRESS "172.16.1.0"
+#define DEFAULT_GW_ADDRESS "192.168.1.254"
 #endif /* LWIP_IPV6 */
 
 #ifdef XPS_BOARD_ZCU102
