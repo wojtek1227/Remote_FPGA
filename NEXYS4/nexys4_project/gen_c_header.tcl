@@ -14,6 +14,7 @@ foreach line $verilog_data {
 		lappend line_to_add #define
 		set address_name [string toupper [lindex $line 1]]
 		set address_value [string map {8'h 0x} [lindex $line 3]]
+		set address_value [string map {; ""} $address_value]
 		lappend line_to_add $address_name
 		lappend line_to_add $address_value
 		set line_to_add [join $line_to_add]

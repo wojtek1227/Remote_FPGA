@@ -7,6 +7,9 @@
 #include "spi_thread.h"
 #include "stdbool.h"
 #include "grabber_registers_addr.h"
+#include "FreeRTOS.h"
+#include "queue.h"
+
 #define SPI_THREAD_STACKSIZE 1024
 static XSpiPs spi;
 static u8 leds_and_display_data[RO_MEM_ADDR_END - RO_MEM_ADDR_START] = {0};
@@ -42,15 +45,18 @@ void spi_read_all_outputs(void)
 void spi_thread(void *p)
 {
 	volatile u8 x;
+
+	InitSPI();
 	while(1)
 	{
+
 		x++;
 	}
 }
 
 void start_spi_thread(void *p)
 {
-	InitSPI();
+
 	sys_thread_new("SPI thread", spi_thread, (void *)p, SPI_THREAD_STACKSIZE);
 
 }

@@ -21,7 +21,7 @@
 				<Item Name="packet_type_t.ctl" Type="VI" URL="../packet_type_t.ctl"/>
 			</Item>
 			<Item Name="gui" Type="Folder">
-				<Item Name="led_bar.xctl" Type="XControl" URL="../led_bar.xctl"/>
+				<Item Name="seven_seg_digit.ctl" Type="VI" URL="../seven_seg_digit.ctl"/>
 				<Item Name="Seven_seg_disp.xctl" Type="XControl" URL="../Seven_seg_disp.xctl"/>
 			</Item>
 			<Item Name="spi" Type="Folder">
@@ -34,6 +34,7 @@
 		<Item Name="cluster_to_byte_data.vi" Type="VI" URL="../cluster_to_byte_data.vi"/>
 		<Item Name="main.vi" Type="VI" URL="../main.vi"/>
 		<Item Name="remote_fpga.vi" Type="VI" URL="../remote_fpga.vi"/>
+		<Item Name="u8_to_sev_seg.vi" Type="VI" URL="../u8_to_sev_seg.vi"/>
 		<Item Name="Untitled 1.vi" Type="VI" URL="../Untitled 1.vi"/>
 		<Item Name="Dependencies" Type="Dependencies">
 			<Item Name="vi.lib" Type="Folder">

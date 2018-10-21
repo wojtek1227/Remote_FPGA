@@ -88,14 +88,14 @@ void tcp_server_thread(void *p)
 			0x80, 0x4,
 			0x81, 0xf,
 			0x82, 0xf0,
-			0x83, 0xfe,
-			0x84, 0xfd,
-			0x85, 0xfb,
-			0x86, 0xf7,
-			0x87, 0xef,
-			0x88, 0xdf,
-			0x89, 0xbf,
-			0x8a, 0x7f
+			0x83, 0x4f,
+			0x84, 0x38,
+			0x85, 0x30,
+			0x86, 0x60,
+			0x87, 0x42,
+			0x88, 0x8,
+			0x89, 0x30,
+			0x8a, 0x42
 	};
 	const char led_low[] = { 0xed, 0x81, 0x00};
 	const char led_high[] = { 0xed, 0x82, 0x00};
@@ -106,12 +106,12 @@ void tcp_server_thread(void *p)
 
 //
 			XSpiPs_PolledTransfer(GetSPIHandle(), led_low, &data_rec, 3);
-			xil_printf("Spi led low %02X %02X %02X\r\n", data_rec[0], data_rec[1], data_rec[2]);
+//			xil_printf("Spi led low %02X %02X %02X\r\n", data_rec[0], data_rec[1], data_rec[2]);
 			data[10] = data_rec[2];
 			XSpiPs_PolledTransfer(GetSPIHandle(), led_high, &data_rec, 3);
-			xil_printf("Spi led high %02X %02X %02X\r\n", data_rec[0], data_rec[1], data_rec[2]);
+//			xil_printf("Spi led high %02X %02X %02X\r\n", data_rec[0], data_rec[1], data_rec[2]);
 			data[12] = data_rec[2];
-			xil_printf("data12 %d data 14 %d\r\n", data[12], data[14]);
+//			xil_printf("data12 %d data 14 %d\r\n", data[12], data[14]);
 //			xil_printf("Writing %d \r\n", sizeof(data));
 			x = lwip_write(sock, data, sizeof(data));
 //			xil_printf("%d bytes written \r\n", x);
@@ -143,6 +143,7 @@ void start_tcp_server_thread(void)
 	struct sockaddr_in address, remote;
 #endif /* LWIP_IPV6 */
 	int size;
+	sys_thread_t tcp_thread_handle = NULL;
 
 	/* set up address to connect to */
         memset(&address, 0, sizeof(address));
@@ -182,9 +183,14 @@ void start_tcp_server_thread(void)
 	while (1) {
 		if ((new_sd = accept(sock, (struct sockaddr *)&remote,
 						(socklen_t *)&size)) > 0)
-			sys_thread_new("TCP server thread",
-					tcp_server_thread, (void*)&new_sd,
-				TCP_SERVER_THREAD_STACKSIZE,
-				DEFAULT_THREAD_PRIO);
+		{
+			if (tcp_thread_handle)
+			{
+				xil_printf("Deleting tcp task\r\n");
+				vTaskDelete(tcp_thread_handle);
+			}
+			tcp_thread_handle = sys_thread_new("TCP server thread",	tcp_server_thread, (void*)&new_sd, TCP_SERVER_THREAD_STACKSIZE,	DEFAULT_THREAD_PRIO);
+		}
+
 	}
 };
