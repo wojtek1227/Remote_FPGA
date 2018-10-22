@@ -14,6 +14,8 @@
 static XSpiPs spi;
 static u8 leds_and_display_data[RO_MEM_ADDR_END - RO_MEM_ADDR_START] = {0};
 
+QueueHandle_t spi_queue;
+
 void InitSPI(void)
 {
 	XSpiPs_Config* config = XSpiPs_LookupConfig(0);
@@ -45,18 +47,22 @@ void spi_read_all_outputs(void)
 void spi_thread(void *p)
 {
 	volatile u8 x;
-
+	xil_printf("Start spi thread\r\n");
+	u8 command[3];
 	InitSPI();
 	while(1)
 	{
 
 		x++;
+		xil_printf("Spi is alive\r\n");
+		xQueueReceive(spi_queue, command, 0);
+		xil_printf("Command %02X %02X %02X\r\n", command[0], command[1], command[2]);
+		vTaskDelay(1000/portTICK_PERIOD_MS);
 	}
 }
 
 void start_spi_thread(void *p)
 {
-
 	sys_thread_new("SPI thread", spi_thread, (void *)p, SPI_THREAD_STACKSIZE);
 
 }

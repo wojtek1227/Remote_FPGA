@@ -37,6 +37,9 @@
 
 extern struct netif server_netif;
 
+QueueHandle_t tcp_queue;
+extern QueueHandle_t spi_queue;
+
 void print_app_header(void)
 {
 	xil_printf("TCP server listening on port %d\r\n",
@@ -120,6 +123,7 @@ void tcp_server_thread(void *p)
 					MSG_DONTWAIT, NULL, NULL)) > 0) {
 
 				xil_printf("Received %02X %02X %02X\r\n", recv->payload[0], recv->payload[1], recv->payload[2]);
+				xQueueSend(spi_queue, recv->payload, 0);
 				XSpiPs_PolledTransfer(GetSPIHandle(), recv->payload, &data_rec, 3);
 	//			lwip_write(sock, data_rec, read_bytes);
 				xil_printf("Spi received %02X %02X %02X\r\n", data_rec[0], data_rec[1], data_rec[2]);
@@ -137,6 +141,7 @@ void tcp_server_thread(void *p)
 void start_tcp_server_thread(void)
 {
 	int sock, new_sd;
+
 #if LWIP_IPV6==1
 	struct sockaddr_in6 address, remote;
 #else
@@ -144,6 +149,7 @@ void start_tcp_server_thread(void)
 #endif /* LWIP_IPV6 */
 	int size;
 	sys_thread_t tcp_thread_handle = NULL;
+	sys_thread_t spi_thread_handle = NULL;
 
 	/* set up address to connect to */
         memset(&address, 0, sizeof(address));
@@ -179,7 +185,7 @@ void start_tcp_server_thread(void)
 	}
 
 	size = sizeof(remote);
-
+	spi_queue = xQueueCreate(10, 3 * sizeof(u8));
 	while (1) {
 		if ((new_sd = accept(sock, (struct sockaddr *)&remote,
 						(socklen_t *)&size)) > 0)
@@ -189,7 +195,13 @@ void start_tcp_server_thread(void)
 				xil_printf("Deleting tcp task\r\n");
 				vTaskDelete(tcp_thread_handle);
 			}
+			if (spi_thread_handle)
+			{
+				xil_printf("Deleting spi task\r\n");
+				vTaskDelete(spi_thread_handle);
+			}
 			tcp_thread_handle = sys_thread_new("TCP server thread",	tcp_server_thread, (void*)&new_sd, TCP_SERVER_THREAD_STACKSIZE,	DEFAULT_THREAD_PRIO);
+			spi_thread_handle = sys_thread_new("Spi thread", spi_thread, NULL, TCP_SERVER_THREAD_STACKSIZE, DEFAULT_THREAD_PRIO);
 		}
 
 	}
