@@ -108,28 +108,35 @@ void tcp_server_thread(void *p)
 //			data[14] = ~x;
 
 //
-			XSpiPs_PolledTransfer(GetSPIHandle(), led_low, &data_rec, 3);
+//			XSpiPs_PolledTransfer(GetSPIHandle(), led_low, &data_rec, 3);
 //			xil_printf("Spi led low %02X %02X %02X\r\n", data_rec[0], data_rec[1], data_rec[2]);
-			data[10] = data_rec[2];
-			XSpiPs_PolledTransfer(GetSPIHandle(), led_high, &data_rec, 3);
+//			data[10] = data_rec[2];
+//			XSpiPs_PolledTransfer(GetSPIHandle(), led_high, &data_rec, 3);
 //			xil_printf("Spi led high %02X %02X %02X\r\n", data_rec[0], data_rec[1], data_rec[2]);
-			data[12] = data_rec[2];
+//			data[12] = data_rec[2];
 //			xil_printf("data12 %d data 14 %d\r\n", data[12], data[14]);
 //			xil_printf("Writing %d \r\n", sizeof(data));
-			x = lwip_write(sock, data, sizeof(data));
+			if(xQueueReceive(tcp_queue, data, 0))
+			{
+				lwip_write(sock, data, sizeof(data));
+			}
 //			xil_printf("%d bytes written \r\n", x);
 //			xil_printf("Running \r\n");
 			if ((read_bytes = lwip_recvfrom(sock, recv_buf, RECV_BUF_SIZE,
 					MSG_DONTWAIT, NULL, NULL)) > 0) {
 
-				xil_printf("Received %02X %02X %02X\r\n", recv->payload[0], recv->payload[1], recv->payload[2]);
-				xQueueSend(spi_queue, recv->payload, 0);
-				XSpiPs_PolledTransfer(GetSPIHandle(), recv->payload, &data_rec, 3);
+//				xil_printf("Received %02X %02X %02X\r\n", recv->payload[0], recv->payload[1], recv->payload[2]);
+//				xil_printf("Received2 %02X %02X %02X\r\n", recv->payload[3], recv->payload[4], recv->payload[5]);
+				if(!xQueueSend(spi_queue, recv->payload, 0))
+				{
+					xil_printf("Cannot sent to Queue\r\n");
+				}
+//				XSpiPs_PolledTransfer(GetSPIHandle(), recv->payload, &data_rec, 3);
 	//			lwip_write(sock, data_rec, read_bytes);
-				xil_printf("Spi received %02X %02X %02X\r\n", data_rec[0], data_rec[1], data_rec[2]);
+//				xil_printf("Spi received %02X %02X %02X\r\n", data_rec[0], data_rec[1], data_rec[2]);
 ////				close(sock);
 			}
-			vTaskDelay(200/portTICK_PERIOD_MS);
+//			vTaskDelay(200/portTICK_PERIOD_MS);
 
 	}
 
@@ -141,7 +148,24 @@ void tcp_server_thread(void *p)
 void start_tcp_server_thread(void)
 {
 	int sock, new_sd;
-
+	char data[] =
+	{
+			0x01, 0x0,
+			0x0,  0x0,
+			0x0,  0x0,
+			0x16,
+			0x80, 0x4,
+			0x81, 0xf,
+			0x82, 0xf0,
+			0x83, 0x4f,
+			0x84, 0x38,
+			0x85, 0x30,
+			0x86, 0x60,
+			0x87, 0x42,
+			0x88, 0x8,
+			0x89, 0x30,
+			0x8a, 0x42
+	};
 #if LWIP_IPV6==1
 	struct sockaddr_in6 address, remote;
 #else
@@ -185,7 +209,9 @@ void start_tcp_server_thread(void)
 	}
 
 	size = sizeof(remote);
+	TimerHandle_t spi_sample_timer = NULL;
 	spi_queue = xQueueCreate(10, 3 * sizeof(u8));
+	tcp_queue = xQueueCreate(10, sizeof(data));
 	while (1) {
 		if ((new_sd = accept(sock, (struct sockaddr *)&remote,
 						(socklen_t *)&size)) > 0)
@@ -200,8 +226,25 @@ void start_tcp_server_thread(void)
 				xil_printf("Deleting spi task\r\n");
 				vTaskDelete(spi_thread_handle);
 			}
+			if (spi_sample_timer)
+			{
+				xil_printf("Deleting timer");
+				xTimerStop(spi_sample_timer, 100);
+				xTimerDelete(spi_sample_timer, 100);
+			}
+
 			tcp_thread_handle = sys_thread_new("TCP server thread",	tcp_server_thread, (void*)&new_sd, TCP_SERVER_THREAD_STACKSIZE,	DEFAULT_THREAD_PRIO);
 			spi_thread_handle = sys_thread_new("Spi thread", spi_thread, NULL, TCP_SERVER_THREAD_STACKSIZE, DEFAULT_THREAD_PRIO);
+			spi_sample_timer = xTimerCreate("Spi sampling timer", pdMS_TO_TICKS(50), pdTRUE, ( void * ) 0, spi_timer_callback);
+			if(spi_sample_timer)
+			{
+				xil_printf("Timer created\r\n");
+				xTimerStart(spi_sample_timer, 0);
+			}
+			else
+			{
+				xil_printf("Timer not created\r\n");
+			}
 		}
 
 	}

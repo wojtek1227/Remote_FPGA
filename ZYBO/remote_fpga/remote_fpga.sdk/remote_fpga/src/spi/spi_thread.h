@@ -13,6 +13,7 @@
 void InitSPI(void);
 XSpiPs* GetSPIHandle(void);
 void spi_thread(void *p);
+void spi_timer_callback(void *p);
 void start_spi_thread(void *p);
 
 #endif /* __SPI_THREAD_H_ */
