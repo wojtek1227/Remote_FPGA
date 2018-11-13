@@ -19,6 +19,7 @@
 // 
 //////////////////////////////////////////////////////////////////////////////////
 `include "parameters.vh"
+`include "dut_parameters.vh"
 
 module dut_example(gpio_if.dut gpio);
 
@@ -27,22 +28,37 @@ module dut_example(gpio_if.dut gpio);
     
     wire [3:0] single_digit;
     wire [7:0][3:0] all_digits ;
-    reg [31:0] refresh_counter = 0;
-    reg [2:0] current_digit = 0;
-    reg [31:0] data_to_display = 32'hdeadbef1;
+    logic [31:0] refresh_counter = 0;
+    logic [2:0] current_digit = 0;
+    logic [31:0] data_to_display;
+    logic [7:0] dp_to_display;
 
     //Buttons and RGB
     parameter btn_sample_rate = 50;          //Buttons sampling rage in Hz
     parameter cycles_to_sample = main_clk_freq/btn_sample_rate;
     
-    wire [4:0] buttons;                  //Array for buttons
-    reg [1:0][4:0] buttons_r;           //Registers for synch buttons to clk
-    reg [1:0][4:0] buttons_sampled;     //Registers for buttons sampled values
-    reg [4:0] buttons_rising_edge;
-    reg [31:0] sampling_counter = 0;
-    reg [2:0] led16 = 3'b001;
-    reg [2:0] led17 = 3'b100;
-    reg chose_led = 1'b0;
+    wire [4:0] buttons;                 //Array for buttons
+    logic [1:0][4:0] buttons_r;           //Buttons synchronization registers
+    logic [1:0][4:0] buttons_sampled;     //Sampled buttons values
+    logic [4:0] buttons_rising_edge;
+    logic [31:0] sampling_counter = 0;
+    logic [2:0] led16 = 3'b001;
+    logic [2:0] led17 = 3'b100;
+    logic chose_led = 1'b0;
+    
+    //Counters
+    logic [15:0] fast_cnt = 16'h0;
+    logic [15:0] slow_cnt = 16'h0;
+    logic fast_cnt_en;
+    logic slow_cnt_en;
+    logic fast_cnt_rst;
+    logic slow_cnt_rst;
+    logic fast_cnt_load;
+    logic slow_cnt_load;
+    logic [31:0] fast_cnt_int_cnt = 32'h0;
+    logic [31:0] slow_cnt_int_cnt = 32'h0;
+    parameter fast_cnt_period = main_clk_freq/fast_cnt_freq;
+    parameter slow_cnt_period = main_clk_freq/slow_cnt_freq;
 
     assign buttons = {gpio.btn_center, gpio.btn_up, gpio.btn_left, gpio.btn_right, gpio.btn_down};
     
@@ -93,16 +109,66 @@ module dut_example(gpio_if.dut gpio);
     assign gpio.led17_R = ~chose_led ? led17[2] : 0;
     assign gpio.led17_G = ~chose_led ? led17[1] : 0;
     assign gpio.led17_B = ~chose_led ? led17[0] : 0;
-    
+          
     //Switches and LEDs
     assign gpio.led = gpio.sw;
     
-    //7Seg
+    assign data_to_display[15:0] = gpio.sw[0] ? slow_cnt : 16'hbeef;
+    assign data_to_display[31:16] = gpio.sw[8] ? fast_cnt : 16'hdead;
+    
+    assign dp_to_display[7:4] = gpio.sw[15:12];
+    assign dp_to_display[3:0] = gpio.sw[7:4];
+    
+    assign slow_cnt_en = gpio.sw[1];
+    assign slow_cnt_rst = gpio.sw[2];
+    assign slow_cnt_load = gpio.sw[3];
+         
+    assign fast_cnt_en = gpio.sw[9];  
+    assign fast_cnt_rst = gpio.sw[10];     
+    assign fast_cnt_load = gpio.sw[11];
+    //Two counters to display on 7seg
+    
+    always_ff@(posedge gpio.clk)
+    begin : fast_counter
+        if (fast_cnt_rst) begin
+            fast_cnt_int_cnt <= 0;
+            fast_cnt <= 0;
+        end else if (fast_cnt_load) begin
+            fast_cnt <= slow_cnt; 
+        end else if (fast_cnt_en) begin
+            if (fast_cnt_int_cnt == fast_cnt_period - 1) begin
+                fast_cnt_int_cnt <= 0;
+                fast_cnt <= fast_cnt + 1;
+            end else begin
+                fast_cnt_int_cnt <= fast_cnt_int_cnt + 1;
+            end
+        end
+    end : fast_counter
+    
+    always_ff@(posedge gpio.clk)
+    begin : slow_counter
+        if (slow_cnt_rst) begin
+            slow_cnt_int_cnt <= 0;
+            slow_cnt <= 0;
+        end else if (slow_cnt_load) begin
+            slow_cnt <= fast_cnt;
+        end else if (slow_cnt_en) begin
+            if (slow_cnt_int_cnt == slow_cnt_period - 1) begin
+                slow_cnt_int_cnt <= 0;
+                slow_cnt <= slow_cnt + 1;
+            end else begin 
+                slow_cnt_int_cnt <= slow_cnt_int_cnt + 1;
+            end
+        end
+    end : slow_counter
+        
+    //7Seg multiplexing 
     assign {>>{all_digits}} = data_to_display;
     assign single_digit = all_digits[current_digit];
     assign gpio.digits = ~(1 << current_digit);
-    assign gpio.dp = (1 << current_digit) == 4 ? 1 : 0;
+    assign gpio.dp = dp_to_display[current_digit];
     
+    //Refresh display
     always_ff@(posedge gpio.clk)
     begin : refresh_display
         if (refresh_counter == cycles_to_refresh_digit - 1) begin
@@ -113,6 +179,7 @@ module dut_example(gpio_if.dut gpio);
         end
     end : refresh_display
     
+    //7Seg encoder
     always_comb
     begin : single_digit_to_7seg
         case(single_digit)
