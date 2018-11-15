@@ -49,8 +49,8 @@ module nexys4_top(
     );
     
     spi_if spi(.*);
-    gpio_if gpio_top(.*);
-    gpio_if gpio_dut(.*);
+    gpio_if gpio_top(clk);
+    gpio_if gpio_dut(clk);
     assign gpio_top.sw = sw;
     assign gpio_top.btn_center = btn_center;
     assign gpio_top.btn_up = btn_up;
@@ -70,6 +70,7 @@ module nexys4_top(
     assign digits = gpio_top.digits;
 
     gpio_grabber grabber(spi, gpio_top, gpio_dut);
-    dut_example dut(gpio_dut);
+    dut_wrapper wrapper(gpio_dut);
+    
 
 endmodule

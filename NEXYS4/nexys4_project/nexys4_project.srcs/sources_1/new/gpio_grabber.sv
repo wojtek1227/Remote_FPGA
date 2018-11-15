@@ -42,8 +42,8 @@ module gpio_grabber(spi_if spi,
     logic [31:0] display_sampling_cnt_ovf = default_display_cycles_to_sample;
     logic [31:0] gpio_sampling_cnt_ovf = default_gpio_cycles_to_sample;
     
-    wire gpio_sampling_enable = control_register[0];
-    wire display_sampling_enable = control_register[1];
+    wire gpio_sampling_rst = control_register[0];
+    wire display_sampling_rst = control_register[1];
      
     wire [4:0] btn = {gpio_dut.btn_center, 
                         gpio_dut.btn_up,
@@ -142,7 +142,9 @@ module gpio_grabber(spi_if spi,
     //Sampling of LED
     always_ff@(posedge gpio_top.clk)
     begin : gpio_sampling
-        if (gpio_sampling_enable) begin
+        if (gpio_sampling_rst) begin
+            gpio_sampling_cnt <= 32'h0;
+        end else begin
             if (gpio_sampling_cnt == gpio_sampling_cnt_ovf - 1) begin
                 gpio_sampling_cnt <= 32'h0;
                 led_data <= led_sr[1];
@@ -150,15 +152,15 @@ module gpio_grabber(spi_if spi,
             end else begin
                 gpio_sampling_cnt <= gpio_sampling_cnt + 1;
             end
-        end else begin 
-            gpio_sampling_cnt <= 32'h0;
         end
     end : gpio_sampling
     
     //Sampling of 7seg display
     always_ff@(posedge gpio_top.clk)
     begin : display_sampling
-        if (display_sampling_enable) begin
+        if (display_sampling_rst) begin
+            display_sampling_cnt <= 32'h0;
+        end else begin 
             if (display_sampling_cnt == display_sampling_cnt_ovf - 1) begin
                 display_sampling_cnt <= 32'h0;
                 segments_data <= segments_sr[1];
@@ -167,8 +169,6 @@ module gpio_grabber(spi_if spi,
             end else begin
                 display_sampling_cnt <= display_sampling_cnt + 1;
             end
-        end else begin
-            display_sampling_cnt <= 32'h0;
         end
     end : display_sampling
     

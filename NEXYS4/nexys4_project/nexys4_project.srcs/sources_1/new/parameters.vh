@@ -15,7 +15,7 @@ parameter gpio_sampling_rate  = 10000000; //Hz
 parameter display_sampling_rate = main_clk_freq; //Hz
 
 //Register default values
-parameter control_register_init_value = 8'h3;
+parameter control_register_init_value = 8'h0;
 parameter sw_data_init_value = 16'h0;
 parameter sw_select_init_value = 16'h0;
 parameter btn_data_init_value = 5'h0;
