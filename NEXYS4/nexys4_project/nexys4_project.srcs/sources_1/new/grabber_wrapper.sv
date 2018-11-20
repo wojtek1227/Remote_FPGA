@@ -21,22 +21,22 @@
 
 
 module grabber_wrapper(
-    input logic [15:0] sw_top,
-    output logic [15:0] led_top,
-    output logic led16_B_top,
-    output logic led16_G_top,
-    output logic led16_R_top,
-    output logic led17_B_top,
-    output logic led17_G_top,
-    output logic led17_R_top,
-    output logic [6:0] segments_top,
-    output logic dp_top,
-    output logic [7:0] digits_top,
-    input logic btn_center_top,
-    input logic btn_up_top,
-    input logic btn_left_top,
-    input logic btn_right_top,
-    input logic btn_down_top,
+    input logic [15:0] sw,
+    output logic [15:0] led,
+    output logic led16_B,
+    output logic led16_G,
+    output logic led16_R,
+    output logic led17_B,
+    output logic led17_G,
+    output logic led17_R,
+    output logic [6:0] segments,
+    output logic dp,
+    output logic [7:0] digits,
+    input logic btn_center,
+    input logic btn_up,
+    input logic btn_left,
+    input logic btn_right,
+    input logic btn_down,
 	
     output logic [15:0] sw_dut,
     input logic [15:0] led_dut,
@@ -54,6 +54,7 @@ module grabber_wrapper(
     output logic btn_left_dut,
     output logic btn_right_dut,
     output logic btn_down_dut,
+	
     input logic sclk,
     input logic mosi,
     input logic ss,
@@ -65,23 +66,23 @@ module grabber_wrapper(
 
     gpio_if gpio_top(clk);
 
-    assign gpio_top.sw = sw_top;
-    assign gpio_top.btn_center = btn_center_top;
-    assign gpio_top.btn_up = btn_up_top;
-    assign gpio_top.btn_left = btn_left_top;
-    assign gpio_top.btn_right = btn_right_top;
-    assign gpio_top.btn_down = btn_down_top;
+    assign gpio_top.sw = sw;
+    assign gpio_top.btn_center = btn_center;
+    assign gpio_top.btn_up = btn_up;
+    assign gpio_top.btn_left = btn_left;
+    assign gpio_top.btn_right = btn_right;
+    assign gpio_top.btn_down = btn_down;
     
-    assign led_top = gpio_top.led;
-    assign led16_B_top = gpio_top.led16_B;
-    assign led16_G_top = gpio_top.led16_G;
-    assign led16_R_top = gpio_top.led16_R;
-    assign led17_B_top = gpio_top.led17_B;
-    assign led17_G_top = gpio_top.led17_G;
-    assign led17_R_top = gpio_top.led17_R;
-    assign segments_top = gpio_top.segments;
-    assign dp_top = gpio_top.dp;
-    assign digits_top = gpio_top.digits;
+    assign led = gpio_top.led;
+    assign led16_B = gpio_top.led16_B;
+    assign led16_G = gpio_top.led16_G;
+    assign led16_R = gpio_top.led16_R;
+    assign led17_B = gpio_top.led17_B;
+    assign led17_G = gpio_top.led17_G;
+    assign led17_R = gpio_top.led17_R;
+    assign segments = gpio_top.segments;
+    assign dp = gpio_top.dp;
+    assign digits = gpio_top.digits;
 
     gpio_if gpio_dut(clk);
     
