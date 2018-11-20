@@ -36,7 +36,7 @@ module gpio_grabber(spi_if spi,
     logic [5:0] rgb_data = 6'h0;
     
     //Demuxed display data
-    logic [7:0][7:0] sev_seg_disp_data = {8{8'h0}};
+    logic [7:0][7:0] sev_seg_disp_data = {8{8'hff}};
     
     //Overflow registers for sampling counters LE addresssing
     logic [31:0] display_sampling_cnt_ovf = default_display_cycles_to_sample;
