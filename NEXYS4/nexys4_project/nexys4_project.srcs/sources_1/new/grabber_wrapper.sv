@@ -37,7 +37,7 @@ module grabber_wrapper(
     input logic btn_left_top,
     input logic btn_right_top,
     input logic btn_down_top,
-//    gpio_if.grabber gpio_dut,
+	
     output logic [15:0] sw_dut,
     input logic [15:0] led_dut,
     input logic led16_B_dut,
