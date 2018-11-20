@@ -48,28 +48,49 @@ module nexys4_top(
     output wire [7:0] digits
     );
     
-    spi_if spi(.*);
-    gpio_if gpio_top(clk);
     gpio_if gpio_dut(clk);
-    assign gpio_top.sw = sw;
-    assign gpio_top.btn_center = btn_center;
-    assign gpio_top.btn_up = btn_up;
-    assign gpio_top.btn_left = btn_left;
-    assign gpio_top.btn_right = btn_right;
-    assign gpio_top.btn_down = btn_down;
-    
-    assign led = gpio_top.led;
-    assign led16_B = gpio_top.led16_B;
-    assign led16_G = gpio_top.led16_G;
-    assign led16_R = gpio_top.led16_R;
-    assign led17_B = gpio_top.led17_B;
-    assign led17_G = gpio_top.led17_G;
-    assign led17_R = gpio_top.led17_R;
-    assign segments = gpio_top.segments;
-    assign dp = gpio_top.dp;
-    assign digits = gpio_top.digits;
 
-    gpio_grabber grabber(spi, gpio_top, gpio_dut);
+    grabber_wrapper grabber(
+    .sw_top(sw),      
+    .led_top(led),    
+    .led16_B_top(led16_B),       
+    .led16_G_top(led16_G),       
+    .led16_R_top(led16_R),       
+    .led17_B_top(led17_B),       
+    .led17_G_top(led17_G),       
+    .led17_R_top(led17_R),       
+    .segments_top(segments),
+    .dp_top(dp),            
+    .digits_top(digits),  
+    .btn_center_top(btn_center),     
+    .btn_up_top(btn_up),         
+    .btn_left_top(btn_left),       
+    .btn_right_top(btn_right),      
+    .btn_down_top(btn_down),       
+    
+    .sw_dut(gpio_dut.sw),     
+    .led_dut(gpio_dut.led),     
+    .led16_B_dut(gpio_dut.led16_B),        
+    .led16_G_dut(gpio_dut.led16_G),        
+    .led16_R_dut(gpio_dut.led16_R),        
+    .led17_B_dut(gpio_dut.led17_B),        
+    .led17_G_dut(gpio_dut.led17_G),        
+    .led17_R_dut(gpio_dut.led17_R),        
+    .segments_dut(gpio_dut.segments), 
+    .dp_dut(gpio_dut.dp),             
+    .digits_dut(gpio_dut.digits),   
+    .btn_center_dut(gpio_dut.btn_center),    
+    .btn_up_dut(gpio_dut.btn_up),        
+    .btn_left_dut(gpio_dut.btn_left),      
+    .btn_right_dut(gpio_dut.btn_right),     
+    .btn_down_dut(gpio_dut.btn_down),  
+        
+    .sclk(sclk),               
+    .mosi(mosi),               
+    .ss(ss),                 
+    .miso(miso),               
+    .clk(clk)
+    );             
     dut_wrapper wrapper(gpio_dut);
     
 
