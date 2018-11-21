@@ -58,7 +58,7 @@ module grabber_wrapper(
     input logic sclk,
     input logic mosi,
     input logic ss,
-    input logic miso,
+    output logic miso,
     input logic clk
     );
     
@@ -98,10 +98,10 @@ module grabber_wrapper(
     assign gpio_dut.dp = dp_dut;
     assign gpio_dut.digits = digits_dut;
     assign btn_center_dut = gpio_dut.btn_center;
-    assign btn_up_dut = gpio_dut.btn_center;
-    assign btn_left_dut = gpio_dut.btn_center;
-    assign btn_right_dut = gpio_dut.btn_center;
-    assign btn_down_dut = gpio_dut.btn_center;
+    assign btn_up_dut = gpio_dut.btn_up;
+    assign btn_left_dut = gpio_dut.btn_left;
+    assign btn_right_dut = gpio_dut.btn_right;
+    assign btn_down_dut = gpio_dut.btn_down;
     
     gpio_grabber grabber(.*);
     
